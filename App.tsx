@@ -5,7 +5,7 @@ import { DIFFICULTY_PRESETS } from './data/constants';
 import { CLUBS, SHOP_ITEMS, ACHIEVEMENTS, TALENTS } from './data/mechanics';
 import { useGameLogic } from './hooks/useGameLogic';
 
-// Component Imports
+// Component Import
 import StatsPanel from './components/StatsPanel';
 import ExamView from './components/ExamView';
 import HomeView from './components/HomeView';
