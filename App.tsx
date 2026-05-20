@@ -5,7 +5,7 @@ import { DIFFICULTY_PRESETS } from './data/constants';
 import { CLUBS, SHOP_ITEMS, ACHIEVEMENTS, TALENTS } from './data/mechanics';
 import { useGameLogic } from './hooks/useGameLogic';
 
-// Component Import
+// Component Imports
 import StatsPanel from './components/StatsPanel';
 import ExamView from './components/ExamView';
 import HomeView from './components/HomeView';
@@ -21,6 +21,16 @@ const App: React.FC = () => {
   const [view, setView] = useState<'HOME' | 'TALENTS' | 'GAME'>('HOME');
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('NORMAL');
   const [customStats, setCustomStats] = useState<GeneralStats>({ mindset: 50, experience: 10, luck: 50, romance: 10, health: 80, money: 20, efficiency: 10 });
+  const [useCustomStats, setUseCustomStats] = useState(false);
+
+  const handleDifficultyChange = (diff: Difficulty) => {
+      setSelectedDifficulty(diff);
+      setUseCustomStats(false);
+  };
+
+  const handleCustomStatsConfirm = () => {
+      setUseCustomStats(true);
+  };
   const [showClubSelection, setShowClubSelection] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showRealityGuide, setShowRealityGuide] = useState(false);
@@ -72,7 +82,7 @@ const App: React.FC = () => {
 
   // --- Logic Hook ---
   const { 
-      state, setState, weekendResult, setWeekendResult, hasSave, saveGame, loadGame,
+      state, setState, weekendResult, setWeekendResult, hasSave, checkHasSave, loadGame,
       startGameState, handleChoice, handleEventConfirm, handleClubSelect, handleShopPurchase, 
       handleWeekendActivityClick, confirmWeekendActivity, handleExamFinish, closeCompetitionPopup, closeExamResult, closeMiniGame,
       weekendOptions 
@@ -99,18 +109,20 @@ const App: React.FC = () => {
   const prepareGame = (challenge?: Challenge) => {
       setWeekendResult(null); setShowClubSelection(false); setShowRealityGuide(false);
       setPendingChallenge(challenge || null);
-      
-      const pool = [...TALENTS]; // Assumes import
+
+      const pool = [...TALENTS];
       const buffs = pool.filter(t => t.cost > 0).sort(() => 0.5 - Math.random()).slice(0, 5);
       const debuffs = pool.filter(t => t.cost < 0).sort(() => 0.5 - Math.random()).slice(0, 4);
       setAvailableTalents([...buffs, ...debuffs].sort(() => 0.5 - Math.random()));
       setSelectedTalents([]);
-      setTalentPoints(selectedDifficulty === 'HARD' ? 1 : (selectedDifficulty === 'REALITY' ? 0 : 3));
+      const effectiveDifficulty = useCustomStats ? 'CUSTOM' : selectedDifficulty;
+      setTalentPoints(effectiveDifficulty === 'HARD' ? 1 : (effectiveDifficulty === 'REALITY' ? 0 : 3));
       setView('TALENTS');
   };
 
   const handleStartGame = () => {
-      startGameState(selectedDifficulty, customStats, selectedTalents, pendingChallenge);
+      const effectiveDifficulty = useCustomStats ? 'CUSTOM' : selectedDifficulty;
+      startGameState(effectiveDifficulty, customStats, selectedTalents, pendingChallenge);
       setView('GAME');
   };
 
@@ -126,15 +138,37 @@ const App: React.FC = () => {
   };
 
   const handleLoadGame = () => {
-      if (loadGame()) setView('GAME');
+      if (loadGame(selectedDifficulty)) setView('GAME');
   };
+
+  const difficultyHasSave = checkHasSave(selectedDifficulty);
 
   // --- Helper for Render ---
   const calculateProgress = () => state.totalWeeksInPhase === 0 ? 0 : Math.min(100, (state.week / state.totalWeeksInPhase) * 100);
   
   const getEndingData = () => {
-     // Simplified ending calculation for display (Move logic to hook if needed for complexity)
-     const score = state.general.mindset + state.general.health + state.general.efficiency * 5 + state.unlockedAchievements.length * 50;
+     // Weighted scoring: attributes + rarity-weighted achievements + exam ranks + OI
+     let score = state.general.mindset + state.general.health + state.general.efficiency * 5;
+
+     // Weighted achievements
+     const rarityScores: Record<string, number> = { common: 30, rare: 75, legendary: 150 };
+     state.unlockedAchievements.forEach(id => {
+       const ach = ACHIEVEMENTS[id];
+       if (ach) score += rarityScores[ach.rarity] || 30;
+     });
+
+     // Exam rank bonus (only academic exams)
+     const rankBonus = (rank: number | null | undefined) => {
+       if (rank && rank <= 50) return Math.round((51 - rank) * 2);
+       return 0;
+     };
+     score += rankBonus(state.midtermRank);
+     score += rankBonus(state.examResult?.rank);
+
+     // OI stats bonus
+     const oiTotal = state.oiStats.dp + state.oiStats.ds + state.oiStats.math + state.oiStats.string + state.oiStats.graph + state.oiStats.misc;
+     score += oiTotal * 0.5;
+
      let rank = "B";
      if (state.phase === Phase.WITHDRAWAL) return { rank: "F", title: "遗憾离场", comment: "身体是革命的本钱。", score };
      if (score > 1000) rank = "SSS"; else if (score > 800) rank = "S"; else if (score > 600) rank = "A";
@@ -146,9 +180,9 @@ const App: React.FC = () => {
   if (view === 'HOME') {
       return (
           <HomeView 
-            selectedDifficulty={selectedDifficulty} onDifficultyChange={setSelectedDifficulty}
-            customStats={customStats} onCustomStatsChange={setCustomStats}
-            onStart={prepareGame} hasSave={hasSave} onLoadGame={handleLoadGame}
+            selectedDifficulty={selectedDifficulty} onDifficultyChange={handleDifficultyChange}
+            customStats={customStats} onCustomStatsChange={setCustomStats} onCustomStatsConfirm={handleCustomStatsConfirm}
+            onStart={prepareGame} hasSave={difficultyHasSave} onLoadGame={handleLoadGame}
             unlockedAchievements={state.unlockedAchievements}
           />
       );
@@ -181,7 +215,7 @@ const App: React.FC = () => {
       )}
 
       {/* Sidebar */}
-      <aside className="w-full md:w-80 flex-shrink-0 flex flex-col gap-2 md:gap-4 max-h-[30vh] md:max-h-full overflow-y-auto md:overflow-visible custom-scroll">
+      <aside className="w-full md:w-80 flex-shrink-0 flex flex-col gap-2 md:gap-4 max-h-[30vh] md:max-h-full md:min-h-0 overflow-y-auto custom-scroll">
           <StatsPanel state={state} onShowGuide={() => setShowRealityGuide(true)} />
           <div className="hidden md:grid grid-cols-2 gap-2">
             <button onClick={() => setShowShop(true)} className="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col items-center justify-center font-bold text-slate-600 active:scale-95">
@@ -194,19 +228,17 @@ const App: React.FC = () => {
                  <i className="fas fa-trophy text-yellow-500 mb-1"></i><span className="text-xs">成就</span>
                  <span className="absolute top-2 right-2 bg-slate-100 text-[9px] px-1.5 rounded-full">{state.unlockedAchievements.length}</span>
             </button>
-            <button onClick={saveGame} className="col-span-1 bg-emerald-100 hover:bg-emerald-200 p-2 rounded-xl text-xs font-bold text-emerald-600 transition-colors disabled:opacity-50 active:scale-95" disabled={!!state.currentEvent}>保存进度</button>
-            <button onClick={() => setState(p => ({...p, phase: Phase.WITHDRAWAL}))} className="col-span-1 bg-rose-100 hover:bg-rose-200 p-2 rounded-xl text-xs font-bold text-rose-600 transition-colors active:scale-95">提前退休</button>
+            <button onClick={() => setState(p => ({...p, phase: Phase.WITHDRAWAL}))} className="col-span-2 bg-rose-100 hover:bg-rose-200 p-2 rounded-xl text-xs font-bold text-rose-600 transition-colors active:scale-95">提前退休</button>
           </div>
       </aside>
 
       {/* Main Area */}
-      <main className="flex-1 flex flex-col gap-2 md:gap-4 relative h-full overflow-hidden">
+      <main className="flex-1 flex flex-col gap-2 md:gap-4 relative h-full overflow-hidden min-h-0">
         {/* Mobile Toolbar */}
         <div className="flex md:hidden gap-2 overflow-x-auto pb-1 flex-shrink-0">
              <button onClick={() => setShowShop(true)} className="flex-shrink-0 bg-white border px-3 py-2 rounded-xl text-xs font-bold shadow-sm"><i className="fas fa-store text-emerald-500 mr-1"></i>小卖部</button>
              <button onClick={() => setShowAchievements(true)} className="flex-shrink-0 bg-white border px-3 py-2 rounded-xl text-xs font-bold shadow-sm"><i className="fas fa-trophy text-yellow-500 mr-1"></i>成就</button>
              <button onClick={() => setShowHistory(true)} className="flex-shrink-0 bg-white border px-3 py-2 rounded-xl text-xs font-bold shadow-sm"><i className="fas fa-archive text-indigo-500 mr-1"></i>历程</button>
-             <button onClick={saveGame} className="flex-shrink-0 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-xl text-xs font-bold text-emerald-600 shadow-sm" disabled={!!state.currentEvent}>保存</button>
         </div>
 
         {/* Header */}

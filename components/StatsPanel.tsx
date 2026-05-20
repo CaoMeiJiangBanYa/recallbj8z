@@ -65,7 +65,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ state, onShowGuide }) => {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-5 space-y-6 h-full border border-slate-200 overflow-y-auto custom-scroll flex flex-col transition-colors duration-300">
+    <div className="bg-white rounded-2xl shadow-xl p-5 space-y-6 border border-slate-200 flex flex-col transition-colors duration-300">
       {/* 状态概览 */}
       <div>
         <div className="flex justify-between items-center mb-3">

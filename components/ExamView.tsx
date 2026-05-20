@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameState, ExamResult, SubjectKey, SUBJECT_NAMES, Phase, OIProblem, OIStats } from '../types';
 import { OI_PROBLEMS } from '../data/oi_data';
+import { getExamScoreMultiplier } from '../data/utils';
 
 interface ExamViewProps {
   title: string;
@@ -130,22 +131,30 @@ const ExamView: React.FC<ExamViewProps> = ({ title, state, onFinish }) => {
             
             const stats = state.subjects[subject];
             
-            // Formula: (Aptitude * 0.4 + Level * 3.0) / DifficultyMod
-            // Example Final Exam (Diff 1.3):
-            // Apt 80, Lvl 20 -> (32 + 60) / 1.3 = 70.7 (70% score) -> OK
-            // Apt 80, Lvl 10 -> (32 + 30) / 1.3 = 47.6 (47% score) -> Fail
-            
-            let basePercentage = (stats.aptitude * 0.4 + stats.level * 3.0);
-            
+            // Formula: (Aptitude * 1.2 + Level * 2.5) / DifficultyMod
+            // 天赋权重提升，level 基础增长，aptitude 真正影响差距
+            // Example Final Exam (Diff 1.5):
+            // Apt 80, Lvl 20 -> (96 + 50) / 1.5 = 97.3 → 97分
+            // Apt 60, Lvl 20 -> (72 + 50) / 1.5 = 81.3 → 81分 (天赋差距明显)
+
+            let basePercentage = (stats.aptitude * 1.2 + stats.level * 2.5);
+
             // Apply Difficulty scaling
             basePercentage = basePercentage / difficultyMod;
 
-            // Efficiency Bonus
+            // Efficiency Bonus (边际递减)
             if (state.general.efficiency > 15) {
-                basePercentage += (state.general.efficiency - 15) * 1.0;
+                basePercentage += 5 + (state.general.efficiency - 15) * 0.5; // 15以上每点+0.5
+            } else if (state.general.efficiency >= 10) {
+                basePercentage += (state.general.efficiency - 10) * 1.0; // 10-15之间每点+1
+            } else {
+                basePercentage += (state.general.efficiency - 10) * 1.5; // 10以下惩罚更大
             }
 
             let finalScoreRaw = basePercentage * luckMultiplier;
+
+            // Apply talent exam score multiplier
+            finalScoreRaw *= getExamScoreMultiplier(state);
 
             // Cap at 100% relative
             let finalPercentage = Math.min(100, Math.max(5, finalScoreRaw)) / 100;

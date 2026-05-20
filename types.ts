@@ -1,7 +1,7 @@
 
 export enum Phase {
   INIT = 'INIT',
-  SUMMER = 'SUMMER',          // 5周
+  SUMMER = 'SUMMER',          // 5周（原8周）
   MILITARY = 'MILITARY',      // 2周
   SELECTION = 'SELECTION',    // 选科环节
   PLACEMENT_EXAM = 'PLACEMENT_EXAM', // 分班考
@@ -105,6 +105,29 @@ export interface WeekendActivity {
     action: (state: GameState) => Partial<GameState>;
 }
 
+export interface TalentPassiveEffects {
+    shopDiscount?: number;           // 商店折扣倍率, 0.8 = 8折
+    moneyGainMultiplier?: number;    // 金钱获取倍率
+    efficiencyChangeMod?: {          // 效率变化修正
+        positiveMultiplier: number;  // 正向效率变化倍率
+        negativeMultiplier: number;  // 负向效率变化倍率
+    };
+    // 结构性约束 - 让天赋效果不会被轻易稀释
+    healthCap?: number;              // 体力上限
+    luckCap?: number;                // 运气上限
+    noWeeklyMoney?: boolean;         // 不再获得每周固定收入
+    romanceGainMultiplier?: number;  // 魅力获取倍率 (0 = 完全无法获取)
+    healthRecoveryMultiplier?: number; // 体力恢复倍率
+    examScoreMultiplier?: number;    // 考试分数倍率
+    romanceEventChanceMultiplier?: number; // 恋爱事件触发概率倍率
+    noDebtEvents?: boolean;          // 免疫讨债事件
+    mindsetFloor?: number;           // 心态下限
+    luckFloor?: number;              // 运气下限
+    efficiencyCap?: number;          // 效率上限
+    shopPriceMultiplier?: number;    // 商店价格倍率 (>1 = 涨价)
+    experienceGainMultiplier?: number; // 经验获取倍率
+}
+
 export interface Talent {
     id: string;
     name: string;
@@ -112,6 +135,7 @@ export interface Talent {
     rarity: 'common' | 'rare' | 'legendary' | 'mythical' | 'cursed';
     cost: number; // Cost in talent points. Negative means it gives points.
     effect?: (state: GameState) => Partial<GameState>; // Initial effect applied at start
+    passive?: TalentPassiveEffects; // Ongoing passive effects
 }
 
 export interface Item {
@@ -124,6 +148,14 @@ export interface Item {
 }
 
 export type Theme = 'light' | 'dark';
+
+// --- API Settings ---
+export interface ApiSettings {
+  apiUrl: string;
+  apiKey: string;
+  modelName: string;
+  customPrompt: string; // empty = use default prompt
+}
 
 export interface Challenge {
     id: string;

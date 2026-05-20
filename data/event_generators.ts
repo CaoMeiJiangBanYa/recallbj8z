@@ -1,56 +1,64 @@
 
 import { GameState, GameEvent, SubjectKey, SUBJECT_NAMES, OIStats } from '../types';
-import { modifySub, modifyOI, getEffectiveEfficiency } from './utils';
+import { modifySub, modifyOI, getEffectiveEfficiency, getRomanceEventMultiplier } from './utils';
 import { STATUSES } from './mechanics';
 import { CHAINED_EVENTS } from './event_defs';
 
 export const generateStudyEvent = (state: GameState): GameEvent => {
-    const pool: SubjectKey[] = state.selectedSubjects.length > 0 
+    const pool: SubjectKey[] = state.selectedSubjects.length > 0
         ? ['chinese', 'math', 'english', ...state.selectedSubjects]
         : (Object.keys(SUBJECT_NAMES) as SubjectKey[]);
 
     const subject = pool[Math.floor(Math.random() * pool.length)];
     const subName = SUBJECT_NAMES[subject];
     const efficiency = getEffectiveEfficiency(state);
+    const currentLevel = state.subjects[subject].level;
+    // 边际递减：等级越高，单次学习收益越低（模拟学习高原效应）
+    const levelDiminishing = Math.max(0.5, 1 - currentLevel * 0.005); // 20级→0.9x, 50级→0.75x, 80级→0.6x
 
     return {
         id: `study_weekly_${Date.now()}`,
         title: `${subName}课的抉择`,
-        description: `这节是${subName}课，老师讲的内容似乎有点催眠，或者...有点太难了？`,
+        description: `这节是${subName}课。${currentLevel > 60 ? '你已经学得很深了，进步空间越来越小...' : currentLevel > 30 ? '你感觉还有提升空间。' : '打好基础很重要。'}`,
         type: 'neutral',
         choices: [
-            { 
-                text: '认真听讲', 
-                action: (s) => ({ 
-                    subjects: modifySub(s, [subject], 2 + efficiency * 0.1),
-                    general: { ...s.general, mindset: s.general.mindset - 1 }
-                }) 
-            },
-            { 
-                text: '偷偷刷题', 
-                action: (s) => ({ 
-                    subjects: modifySub(s, [subject], 4 + efficiency * 0.1),
-                    general: { ...s.general, health: s.general.health - 2 }
-                }) 
-            },
-            { 
-                text: '睡觉', 
+            {
+                text: '认真听讲',
                 action: (s) => {
-                    // Luck affects if you get caught sleeping
-                    const caughtChance = Math.max(0, 0.4 - s.general.luck / 200); 
+                    const gain = Math.max(1, (2 + efficiency * 0.05) * levelDiminishing);
+                    return {
+                        subjects: modifySub(s, [subject], gain),
+                        general: { ...s.general, mindset: s.general.mindset - 1 }
+                    };
+                }
+            },
+            {
+                text: '偷偷刷题',
+                action: (s) => {
+                    const gain = Math.max(1.5, (3 + efficiency * 0.05) * levelDiminishing);
+                    return {
+                        subjects: modifySub(s, [subject], gain),
+                        general: { ...s.general, health: s.general.health - 3, mindset: s.general.mindset - 1 }
+                    };
+                }
+            },
+            {
+                text: '睡觉',
+                action: (s) => {
+                    const caughtChance = Math.max(0, 0.4 - s.general.luck / 200);
                     if (Math.random() < caughtChance) {
                         return {
                             general: { ...s.general, mindset: s.general.mindset - 5, romance: s.general.romance - 2 },
                             log: [...s.log, { message: "补觉被老师发现了！当众被点名...", type: 'warning', timestamp: Date.now() }]
                         };
                     }
-                    return { 
-                        general: { ...s.general, health: s.general.health + 5, mindset: s.general.mindset + 2, efficiency: s.general.efficiency + 1 },
-                        subjects: modifySub(s, [subject], -1), 
+                    return {
+                        general: { ...s.general, health: s.general.health + 5, mindset: s.general.mindset + 3 },
+                        subjects: modifySub(s, [subject], -1),
                         sleepCount: (s.sleepCount || 0) + 1,
                         log: [...s.log, { message: "运气不错，老师没发现你睡着了。", type: 'success', timestamp: Date.now() }]
                     };
-                } 
+                }
             }
         ]
     };
@@ -117,7 +125,8 @@ export const generateRandomFlavorEvent = (state: GameState): GameEvent => {
         };
     }
 
-    if (state.romancePartner && Math.random() < 0.25) { 
+    const romanceMult = getRomanceEventMultiplier(state);
+    if (state.romancePartner && Math.random() < 0.25 * romanceMult) {
         const dateLocations = ['西单', '北海公园', '电影院', '图书馆', '什刹海'];
         const loc = dateLocations[Math.floor(Math.random() * dateLocations.length)];
         return {
@@ -303,7 +312,7 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
             {
                 text: '刷B站',
                 action: (s) => ({
-                    general: { ...s.general, mindset: s.general.mindset + 5, efficiency: s.general.efficiency - 2 },
+                    general: { ...s.general, mindset: s.general.mindset + 5, efficiency: s.general.efficiency - 1 },
                     log: [...s.log, { message: "在B站刷了一下午视频，心情舒畅，但感觉脑子变慢了。", type: 'info', timestamp: Date.now() }]
                 })
             },
@@ -336,7 +345,7 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
                 text: '预习新学期内容',
                 action: (s) => ({
                     subjects: modifySub(s, ['math', 'physics', 'chemistry'], 2),
-                    general: { ...s.general, mindset: s.general.mindset - 2, efficiency: s.general.efficiency + 1 },
+                    general: { ...s.general, mindset: s.general.mindset - 2, efficiency: s.general.efficiency + 0.5 },
                     log: [...s.log, { message: "好难啊啊啊啊。", type: 'info', timestamp: Date.now() }]
                 })
             }
@@ -356,8 +365,8 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
                         const luckySeat = Math.random() < 0.5 + s.general.luck / 500;
                         if(luckySeat) {
                             return {
-                                subjects: modifySub(s, ['math', 'physics'], 6),
-                                general: { ...s.general, efficiency: s.general.efficiency + 2 },
+                                subjects: modifySub(s, ['math', 'physics'], 5),
+                                general: { ...s.general, efficiency: s.general.efficiency + 1 },
                                 log: [...s.log, { message: "抢到了靠窗的好位置，效率倍增！", type: 'success', timestamp: Date.now() }]
                             }
                         } else {
@@ -384,9 +393,9 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
             type: 'neutral',
             choices: [
                 {
-                    text: '认真听讲 ',
+                    text: '认真听讲',
                     action: (s) => ({
-                        general: { ...s.general,  efficiency: s.general.efficiency + 3 },
+                        general: { ...s.general,  efficiency: s.general.efficiency + 1.5 },
                         subjects: modifySub(s, ['math', 'physics', 'chemistry', 'english'], 4),
                         log: [...s.log, { message: "名师果然有一套，你感觉任督二脉被打通了。", type: 'success', timestamp: Date.now() }]
                     })
@@ -410,7 +419,7 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
                     text: '温故而知新',
                     action: (s) => ({
                         subjects: modifySub(s, ['math', 'physics', 'chemistry'], 3),
-                        general: { ...s.general, efficiency: s.general.efficiency + 2 },
+                        general: { ...s.general, efficiency: s.general.efficiency + 1 },
                         log: [...s.log, { message: "基础夯实了，你对分班考试更有信心了。", type: 'success', timestamp: Date.now() }]
                     })
                 }

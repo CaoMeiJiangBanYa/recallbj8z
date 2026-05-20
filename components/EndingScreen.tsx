@@ -125,6 +125,33 @@ const EndingScreen: React.FC<EndingScreenProps> = ({ state, endingData, onRestar
                                  ))}
                              </div>
                          </div>
+
+                        {/* OI Dimension Breakdown */}
+                        {state.competition === 'OI' && (
+                            <div className="space-y-3 mt-4 pt-4 border-t border-slate-200">
+                                <h3 className="font-black text-slate-400 uppercase text-xs">OI专项能力</h3>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                    {[
+                                        { label: '动态规划 (DP)', val: Math.min(100, state.oiStats.dp * 5) },
+                                        { label: '数据结构 (DS)', val: Math.min(100, state.oiStats.ds * 5) },
+                                        { label: '组合数学', val: Math.min(100, state.oiStats.math * 5) },
+                                        { label: '字符串', val: Math.min(100, state.oiStats.string * 5) },
+                                        { label: '图论', val: Math.min(100, state.oiStats.graph * 5) },
+                                        { label: '思维/杂项', val: Math.min(100, state.oiStats.misc * 5) },
+                                    ].map((stat, i) => (
+                                        <div key={i} className="flex flex-col gap-1">
+                                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                                <span>{stat.label}</span>
+                                                <span>{Math.floor(stat.val)}</span>
+                                            </div>
+                                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-indigo-400 transition-all duration-1000" style={{ width: `${Math.max(0, stat.val)}%` }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column: Highlights & Achievements */}

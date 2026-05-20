@@ -5,56 +5,68 @@ import { modifySub, modifyOI } from './utils';
 // --- Talents ---
 export const TALENTS: Talent[] = [
     // --- Legendary (Cost 4) ---
-    { id: 'genius', name: '天生我才', description: '全学科天赋+10，效率+5。', rarity: 'legendary', cost: 4,
+    { id: 'genius', name: '天生我才', description: '全科天赋+8，效率+2，考试分数×1.05。', rarity: 'legendary', cost: 4,
       effect: (s) => {
           const newSubs = { ...s.subjects };
-          // @ts-ignore
-          (Object.keys(newSubs)).forEach(k => newSubs[k].aptitude += 10);
-          return { subjects: newSubs, general: { ...s.general, efficiency: s.general.efficiency + 5 } };
-      }
+          (Object.keys(newSubs) as (keyof typeof newSubs)[]).forEach(k => newSubs[k].aptitude += 8);
+          return { subjects: newSubs, general: { ...s.general, efficiency: s.general.efficiency + 2 } };
+      },
+      passive: { examScoreMultiplier: 1.05 }
     },
-    { id: 'rich_kid', name: '家里有矿', description: '初始金钱+100。', rarity: 'legendary', cost: 4,
-      effect: (s) => ({ general: { ...s.general, money: s.general.money + 100 } })
+    { id: 'rich_kid', name: '家里有矿', description: '商店7折，金钱获取+50%，免疫讨债事件。', rarity: 'legendary', cost: 4,
+      effect: (s) => ({ general: { ...s.general, money: s.general.money + 30 } }),
+      passive: { shopDiscount: 0.7, moneyGainMultiplier: 1.5, noDebtEvents: true }
     },
     // --- Rare (Cost 2-3) ---
-    { id: 'attractive', name: '万人迷', description: '初始魅力+20，恋爱事件概率UP。', rarity: 'rare', cost: 2,
-      effect: (s) => ({ general: { ...s.general, romance: s.general.romance + 20 } })
+    { id: 'attractive', name: '万人迷', description: '初始魅力+10，恋爱事件触发概率×2。', rarity: 'rare', cost: 2,
+      effect: (s) => ({ general: { ...s.general, romance: s.general.romance + 10 } }),
+      passive: { romanceEventChanceMultiplier: 2.0 }
     },
-    { id: 'oi_nerd', name: '机房幽灵', description: 'OI各项能力初始+10，但魅力-10。', rarity: 'rare', cost: 3,
-      effect: (s) => ({ 
-          oiStats: modifyOI(s, { dp: 10, ds: 10, math: 10, string: 10, graph: 10, misc: 10 }),
-          general: { ...s.general, romance: Math.max(0, s.general.romance - 10) }
-      })
+    { id: 'oi_nerd', name: '机房幽灵', description: 'OI各项初始+5，但魅力获取减半。', rarity: 'rare', cost: 3,
+      effect: (s) => ({
+          oiStats: modifyOI(s, { dp: 5, ds: 5, math: 5, string: 5, graph: 5, misc: 5 }),
+          general: { ...s.general, romance: Math.max(0, s.general.romance - 5) }
+      }),
+      passive: { romanceGainMultiplier: 0.5 }
     },
-    { id: 'lucky_dog', name: '锦鲤附体', description: '初始运气+30。', rarity: 'rare', cost: 2,
-        effect: (s) => ({ general: { ...s.general, luck: s.general.luck + 30 } })
+    { id: 'lucky_dog', name: '锦鲤附体', description: '运气+15，且运气不会低于30。', rarity: 'rare', cost: 2,
+        effect: (s) => ({ general: { ...s.general, luck: s.general.luck + 15 } }),
+        passive: { luckFloor: 30 }
     },
     // --- Common (Cost 1) ---
-    { id: 'healthy', name: '体育特长', description: '初始健康+20。', rarity: 'common', cost: 1,
-      effect: (s) => ({ general: { ...s.general, health: s.general.health + 20 } })
+    { id: 'healthy', name: '体育特长', description: '体力恢复×1.5。', rarity: 'common', cost: 1,
+      effect: (s) => ({ general: { ...s.general, health: s.general.health + 10 } }),
+      passive: { healthRecoveryMultiplier: 1.5 }
     },
-    { id: 'optimist', name: '乐天派', description: '初始心态+20。', rarity: 'common', cost: 1,
-        effect: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 20 } })
+    { id: 'optimist', name: '乐天派', description: '心态+10，且心态不会低于20。', rarity: 'common', cost: 1,
+        effect: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 10 } }),
+        passive: { mindsetFloor: 20 }
     },
-    { id: 'poor_student', name: '寒门学子', description: '初始金钱-50，但意志坚定（心态+10，效率+2）。', rarity: 'common', cost: 1,
-        effect: (s) => ({ general: { ...s.general, money: s.general.money - 50, mindset: s.general.mindset + 10, efficiency: s.general.efficiency + 2 } })
+    { id: 'poor_student', name: '寒门学子', description: '初始金钱-30，效率+3，免疫讨债。', rarity: 'common', cost: 1,
+        effect: (s) => ({ general: { ...s.general, money: s.general.money - 30, efficiency: s.general.efficiency + 3 } }),
+        passive: { noDebtEvents: true }
     },
 
     // --- Cursed (Negative Cost = Gives Points) ---
-    { id: 'poverty', name: '家徒四壁', description: '初始金钱归零，且背负100元债务。', rarity: 'cursed', cost: -2,
-      effect: (s) => ({ general: { ...s.general, money: s.general.money - 120 } }) // Assuming base is ~20, this sets to -100 relative
+    { id: 'poverty', name: '家徒四壁', description: '初始负债120，且不再获得每周固定收入。', rarity: 'cursed', cost: -2,
+      effect: (s) => ({ general: { ...s.general, money: s.general.money - 140 } }),
+      passive: { noWeeklyMoney: true }
     },
-    { id: 'frail', name: '体弱多病', description: '初始健康降低，稍不注意就会生病。', rarity: 'cursed', cost: -2,
-      effect: (s) => ({ general: { ...s.general, health: 20 } })
+    { id: 'frail', name: '体弱多病', description: '体力上限锁定为50，休息恢复减半。', rarity: 'cursed', cost: -2,
+      effect: (s) => ({ general: { ...s.general, health: Math.min(s.general.health, 50) } }),
+      passive: { healthCap: 50, healthRecoveryMultiplier: 0.5 }
     },
-    { id: 'loner', name: '孤僻', description: '初始魅力归零，很难建立人际关系。', rarity: 'cursed', cost: -1,
-      effect: (s) => ({ general: { ...s.general, romance: 0 } })
+    { id: 'loner', name: '孤僻', description: '魅力获取恒为0，无法触发恋爱事件。', rarity: 'cursed', cost: -1,
+      effect: (s) => ({ general: { ...s.general, romance: 0 } }),
+      passive: { romanceGainMultiplier: 0, romanceEventChanceMultiplier: 0 }
     },
-    { id: 'dumb', name: '笨鸟先飞', description: '效率-7，学习非常吃力。', rarity: 'cursed', cost: -3,
-      effect: (s) => ({ general: { ...s.general, efficiency: Math.max(1, s.general.efficiency - 7) } })
+    { id: 'dumb', name: '笨鸟先飞', description: '效率+3，但效率上限为15，且效率提升减半、降低翻倍。', rarity: 'cursed', cost: -3,
+      effect: (s) => ({ general: { ...s.general, efficiency: Math.min(s.general.efficiency + 3, 15) } }),
+      passive: { efficiencyChangeMod: { positiveMultiplier: 0.5, negativeMultiplier: 2 }, efficiencyCap: 15 }
     },
-    { id: 'bad_luck', name: '非酋', description: '运气-20，喝凉水都塞牙。', rarity: 'cursed', cost: -1,
-      effect: (s) => ({ general: { ...s.general, luck: Math.max(0, s.general.luck - 20) } })
+    { id: 'bad_luck', name: '非酋', description: '运气-15，且运气不会超过30。', rarity: 'cursed', cost: -1,
+      effect: (s) => ({ general: { ...s.general, luck: Math.max(0, s.general.luck - 15) } }),
+      passive: { luckCap: 30 }
     }
 ];
 
@@ -178,140 +190,130 @@ export const CLUBS: Club[] = [
     }
 ];
 
-// --- Weekend Activities ---
+// --- Weekend Activities (精简至12个，各有独特定位) ---
 export const WEEKEND_ACTIVITIES: WeekendActivity[] = [
+    // === 学习类 STUDY ===
+    {
+        id: 'w_library', name: '上图书馆', icon: 'fa-book', type: 'STUDY',
+        description: '效率+0.5，语数外+0.5。稳扎稳打。',
+        resultText: '图书馆的氛围很好，你巩固了基础，感觉效率微升。',
+        action: (s) => ({ general: { ...s.general, efficiency: s.general.efficiency + 0.5 }, subjects: modifySub(s, ['chinese', 'english', 'math'], 0.5) })
+    },
+    {
+        id: 'w_review', name: '高强度复习', icon: 'fa-pencil-alt', type: 'STUDY',
+        description: '选科+1，但心态-3、效率-0.5。有代价的冲刺。',
+        resultText: '你复习了一下午功课，感觉掌握得更扎实了，但脑子已经不想转了。',
+        action: (s) => ({ subjects: modifySub(s, s.selectedSubjects.length > 0 ? s.selectedSubjects : ['math', 'physics'], 1), general: { ...s.general, mindset: s.general.mindset - 3, efficiency: s.general.efficiency - 0.5 } })
+    },
+    {
+        id: 'w_mock_exam', name: '参加模拟考', icon: 'fa-file-alt', type: 'STUDY',
+        description: '做一套模拟卷，检验学业水平。结果取决于实力。',
+        resultText: (s) => {
+            const avg = (s.subjects.math.level + s.subjects.chinese.level + s.subjects.english.level) / 3;
+            if (avg > 80) return '题目太简单了！轻松拿下高分，信心倍增。';
+            if (avg > 50) return '成绩不错，能排进前列。但还是有几个知识点不熟。';
+            if (avg > 25) return '中规中矩，暴露了不少薄弱环节。回去好好复习。';
+            return '惨不忍睹...你意识到和学霸的差距。知耻后勇！';
+        },
+        action: (s) => {
+            const avg = (s.subjects.math.level + s.subjects.chinese.level + s.subjects.english.level) / 3;
+            if (avg > 50) {
+                return {
+                    general: { ...s.general, mindset: s.general.mindset + 5, experience: s.general.experience + 3 },
+                    subjects: modifySub(s, ['math', 'chinese', 'english'], 1)
+                };
+            }
+            return {
+                general: { ...s.general, mindset: s.general.mindset - 3, efficiency: s.general.efficiency + 2 },
+                subjects: modifySub(s, ['math', 'chinese', 'english'], 0.5)
+            };
+        }
+    },
+    // === 休息类 REST ===
+    {
+        id: 'w_sleep', name: '补觉', icon: 'fa-bed', type: 'REST',
+        description: '健康+5，心态+2。朴实无华的充电。',
+        resultText: '这一觉睡得天昏地暗，醒来时已经是黄昏了。',
+        action: (s) => ({ general: { ...s.general, health: s.general.health + 5, mindset: s.general.mindset + 2 }, sleepCount: (s.sleepCount || 0) + 1 })
+    },
+    {
+        id: 'w_game', name: '打游戏', icon: 'fa-gamepad', type: 'REST',
+        description: '心态+5，效率-0.5。适度放松。',
+        resultText: '玩了几把游戏，放松了一下紧绷的神经。',
+        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 5, efficiency: s.general.efficiency - 0.5 } })
+    },
+    {
+        id: 'w_read', name: '看课外书', icon: 'fa-book-open', type: 'REST',
+        description: '心态+3，经验+2。开卷有益。',
+        resultText: '你沉浸在书中的世界，暂时忘却了烦恼。',
+        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, experience: s.general.experience + 2 } })
+    },
+    {
+        id: 'w_park', name: '去公园/爬山', icon: 'fa-tree', type: 'REST',
+        description: '健康+3，心态+3。均衡的户外活动。',
+        resultText: '呼吸着新鲜空气，你感觉身心舒畅。',
+        action: (s) => ({ general: { ...s.general, health: s.general.health + 3, mindset: s.general.mindset + 3 } })
+    },
+    // === 社交类 SOCIAL ===
+    {
+        id: 'w_chat', name: '和朋友聊天', icon: 'fa-comments', type: 'SOCIAL',
+        description: '心态+3，魅力+2。维护人际关系。',
+        resultText: '和朋友聊了很多八卦，心情变好了。',
+        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, romance: s.general.romance + 2 } })
+    },
+    {
+        id: 'w_shop', name: '约朋友逛街', icon: 'fa-shopping-bag', type: 'SOCIAL',
+        description: '心态+5，魅力+3，花费30元。效果强但有代价。',
+        resultText: '你和朋友在西单逛了一下午，虽然钱包瘪了，但心情好多了。',
+        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 5, romance: s.general.romance + 3, money: s.general.money - 30 } })
+    },
     {
         id: 'w_club_activity', name: '社团活动', icon: 'fa-users', type: 'SOCIAL',
         condition: (s) => !!s.club && s.week % 4 === 0,
-        description: '参加社团组织的月度活动。',
-        resultText: '你参加了社团活动，大家玩得很开心。(根据社团不同提升属性)',
+        description: '参加社团月度活动，效果由社团决定。',
+        resultText: '你参加了社团活动，大家玩得很开心。',
         action: (s) => {
              const club = CLUBS.find(c => c.id === s.club);
              return club ? club.action(s) : {};
         }
     },
-    {
-        id: 'w_shop', name: '约朋友逛街', icon: 'fa-shopping-bag', type: 'SOCIAL',
-        description: '消费30元，大幅提升心情和魅力。',
-        resultText: '你和朋友在西单逛了一下午，虽然钱包瘪了，但心情好多了。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 5, romance: s.general.romance + 3, money: s.general.money - 30 } })
-    },
-    {
-        id: 'w_library', name: '上图书馆', icon: 'fa-book', type: 'STUDY',
-        description: '提升学习效率，巩固语数外基础。',
-        resultText: '图书馆的氛围很好，你感觉学习效率提升了(效率+1)。',
-        action: (s) => ({ general: { ...s.general, efficiency: s.general.efficiency + 1 }, subjects: modifySub(s, ['chinese', 'english', 'math'], 0.5) })
-    },
-    {
-        id: 'w_read', name: '看课外书', icon: 'fa-book-open', type: 'REST',
-        description: '阅读是心灵的避风港。提升心态和经验。',
-        resultText: '你沉浸在书中的世界，暂时忘却了烦恼。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, experience: s.general.experience + 2 } })
-    },
-    {
-        id: 'w_review', name: '复习功课', icon: 'fa-pencil-alt', type: 'STUDY',
-        description: '针对选科进行复习，但会消耗心态。',
-        resultText: '你复习了一下午功课，感觉掌握得更扎实了，就是有点累。',
-        action: (s) => ({ subjects: modifySub(s, s.selectedSubjects.length > 0 ? s.selectedSubjects : ['math', 'physics'], 0.5), general: { ...s.general, mindset: s.general.mindset - 2 } })
-    },
-    {
-        id: 'w_sleep', name: '补觉', icon: 'fa-bed', type: 'REST',
-        description: 'S属性大爆发，Sleep!',
-        resultText: '这一觉睡得天昏地暗，醒来时已经是黄昏了。',
-        action: (s) => ({ general: { ...s.general, health: s.general.health + 8, mindset: s.general.mindset + 2 }, sleepCount: (s.sleepCount || 0) + 1 })
-    },
-    {
-        id: 'w_game_late', name: '熬夜打游戏', icon: 'fa-moon', type: 'REST',
-        description: '爽爽爽！',
-        resultText: '赢了一晚上，爽！但是第二天早上头痛欲裂。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 8, health: s.general.health - 5, efficiency: s.general.efficiency - 2 } })
-    },
-    {
-        id: 'w_game', name: '打游戏', icon: 'fa-gamepad', type: 'REST',
-        description: '适度游戏益脑。提升心态，微降效率。',
-        resultText: '玩了几把游戏，放松了一下紧绷的神经。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 5, efficiency: s.general.efficiency - 1 } })
-    },
-    {
-        id: 'w_video', name: '刷视频', icon: 'fa-play-circle', type: 'REST',
-        description: '杀时间利器。提升少量心态，大幅降低效率。',
-        resultText: '刷视频停不下来，回过神来已经过去两个小时了。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, efficiency: s.general.efficiency - 3 } })
-    },
-    {
-        id: 'w_chat', name: '和朋友聊天', icon: 'fa-comments', type: 'SOCIAL',
-        description: '提升心态和魅力。',
-        resultText: '和朋友聊了很多八卦，心情变好了。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 4, romance: s.general.romance + 2 } })
-    },
-    {
-        id: 'w_zhihu', name: '刷知乎', icon: 'fa-question-circle', type: 'REST',
-        description: '谢邀，人在美国，刚下飞机。提升经验。',
-        resultText: '你在知乎上学到了很多奇怪的知识。',
-        action: (s) => ({ general: { ...s.general, experience: s.general.experience + 3, mindset: s.general.mindset + 1 } })
-    },
-    {
-        id: 'w_park', name: '去公园/爬山', icon: 'fa-tree', type: 'REST',
-        description: '拥抱大自然。平衡提升健康和心态。',
-        resultText: '呼吸着新鲜空气，你感觉身心舒畅。',
-        action: (s) => ({ general: { ...s.general, health: s.general.health + 5, mindset: s.general.mindset + 5 } })
-    },
-    // Romance Exclusive (Visible only when has partner)
+    // === 恋爱专属 LOVE (仅在有伴侣时可见) ===
     {
         id: 'w_date_call', name: '煲电话粥', icon: 'fa-phone-alt', type: 'LOVE',
         condition: (s) => !!s.romancePartner,
-        description: '听听TA的声音。提升魅力和心态。',
+        description: '魅力+3，心态+5。听听TA的声音。',
         resultText: (s) => `你和${s.romancePartner}聊了很久，感觉彼此的心更近了。`,
-        action: (s) => ({ general: { ...s.general, romance: s.general.romance + 4, mindset: s.general.mindset + 5 } })
+        action: (s) => ({ general: { ...s.general, romance: s.general.romance + 3, mindset: s.general.mindset + 5 } })
     },
-    {
-        id: 'w_date_game', name: '一起打游戏', icon: 'fa-gamepad', type: 'LOVE',
-        condition: (s) => !!s.romancePartner,
-        description: '带TA上分（或者掉分）。提升魅力和经验。',
-        resultText: (s) => `虽然配合有些失误，但你和${s.romancePartner}玩得很开心。`,
-        action: (s) => ({ general: { ...s.general, romance: s.general.romance + 3, experience: s.general.experience + 3 } })
-    },
-    {
-        id: 'w_date_flex', name: '发朋友圈', icon: 'fa-camera', type: 'LOVE',
-        condition: (s) => !!s.romancePartner,
-        description: '秀恩爱。大幅提升魅力，可能招来嫉妒。',
-        resultText: '你的朋友圈收获了大量的点赞和柠檬。',
-        action: (s) => ({ general: { ...s.general, romance: s.general.romance + 6, luck: s.general.luck - 1 } })
-    },
-    // OI Exclusive
+    // === OI专属 (竞赛路线专用) ===
     {
         id: 'w_luogu', name: '刷洛谷', icon: 'fa-code', type: 'OI',
         condition: (s) => s.competition === 'OI',
-        description: '提升OI基础能力。',
-        resultText: '刷了几道水题，感觉还可以。',
+        description: '基础OI能力各+0.2，经验+1。',
+        resultText: '刷了几道题，感觉还可以。',
         action: (s) => ({ oiStats: modifyOI(s, { dp: 0.2, ds: 0.2, misc: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
-    },
-    {
-        id: 'w_cf', name: '打 Codeforces', icon: 'fa-laptop-code', type: 'OI',
-        condition: (s) => s.competition === 'OI',
-        description: '提升思维能力，但可能会掉Rating影响心态。',
-        resultText: '打了一场 Div.2，被E题卡住了。',
-        action: (s) => ({ oiStats: modifyOI(s, { math: 0.5, misc: 0.5 }), general: { ...s.general, mindset: s.general.mindset - 4 } })
-    },
-    {
-        id: 'w_atc', name: '打 AtCoder', icon: 'fa-keyboard', type: 'OI',
-        condition: (s) => s.competition === 'OI',
-        description: '提升数学和思维能力。',
-        resultText: '小清新ARC。',
-        action: (s) => ({ oiStats: modifyOI(s, { math: 0.8, misc: 0.2 }), general: { ...s.general, mindset: s.general.mindset - 2 } })
     },
     {
         id: 'w_oi_wiki', name: '看 OI-Wiki', icon: 'fa-book-atlas', type: 'OI',
         condition: (s) => s.competition === 'OI',
-        description: '全面补习OI基础知识。',
+        description: '全OI维度+0.2，经验+1。全面夯实基础。',
         resultText: '你学习了几个新的算法模板，但还需要练习。',
         action: (s) => ({ oiStats: modifyOI(s, { string: 0.2, graph: 0.2, math: 0.2, dp: 0.2, ds: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
     },
     {
-        id: 'w_water_oi', name: '水OI群', icon: 'fa-water', type: 'OI',
+        id: 'w_mock_oi', name: '参加模拟赛', icon: 'fa-trophy', type: 'OI',
         condition: (s) => s.competition === 'OI',
-        description: '恢复心态，了解OI圈八卦。',
-        resultText: '群友个个都是人才，说话又好听。',
-        action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, experience: s.general.experience + 1 } })
+        description: '核心OI各+0.5，经验+2。检验实力。',
+        resultText: (s) => {
+            const total = s.oiStats.dp + s.oiStats.ds + s.oiStats.math + s.oiStats.string + s.oiStats.graph + s.oiStats.misc;
+            if (total > 100) return '你碾压了全场，AK 了所有题目。同学们投来崇拜的目光。';
+            if (total > 60) return '发挥稳定，做出了大部分题目。在机房属于中上水平。';
+            if (total > 30) return '还行，做出来几道。但旁边大神已经在写第四题了...';
+            return '题目好难...不过继续努力吧！';
+        },
+        action: (s) => ({
+            oiStats: modifyOI(s, { dp: 0.5, ds: 0.5, math: 0.5, misc: 0.5 }),
+            general: { ...s.general, experience: s.general.experience + 2 }
+        })
     }
 ];

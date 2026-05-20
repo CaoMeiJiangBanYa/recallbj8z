@@ -574,6 +574,82 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
             { text: '冲！', action: (s) => ({ general: { ...s.general, health: s.general.health + 1, efficiency: s.general.efficiency + 1 } }) },
             { text: '等人少了再去', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 1 } }) }
         ]
+    },
+    {
+        id: 's1_seat_change',
+        title: '换座位',
+        description: '班主任宣布下周一换座位。周围环境的改变可能会影响你的状态。',
+        triggerType: 'RANDOM',
+        once: true,
+        type: 'neutral',
+        choices: [
+            { text: '抢占前排学霸区', action: (s) => ({ general: { ...s.general, efficiency: s.general.efficiency + 1, romance: s.general.romance - 1 } }) },
+            { text: '坐后排摸鱼区', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 2, efficiency: s.general.efficiency - 0.5 } }) },
+            { text: '坐在TA旁边', condition: (s) => !!s.romancePartner, action: (s) => ({ general: { ...s.general, romance: s.general.romance + 3, mindset: s.general.mindset + 2 } }) },
+            { text: '随便坐哪都行', action: (s) => ({ general: { ...s.general, experience: s.general.experience + 2 } }) }
+        ]
+    },
+    {
+        id: 's1_tutoring',
+        title: '课外补习',
+        description: '家长觉得你学习还需要加把劲，给你报了个补习班。要不要去？',
+        triggerType: 'RANDOM',
+        type: 'neutral',
+        choices: [
+            { text: '去听听看 (-20金钱)', action: (s) => ({ subjects: modifySub(s, ['math', 'physics', 'english'], 3), general: { ...s.general, money: s.general.money - 20, mindset: s.general.mindset - 2 } }) },
+            { text: '坚决不去', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, experience: s.general.experience + 2 } }) }
+        ]
+    },
+    {
+        id: 's1_physical_test',
+        title: '体测日',
+        description: '一年一度的体质测试来了。1000米、引体向上、坐位体前屈...',
+        triggerType: 'RANDOM',
+        once: true,
+        type: 'neutral',
+        choices: [
+            { text: '全力以赴', action: (s) => {
+                const good = s.general.health > 50;
+                return { general: { ...s.general, health: s.general.health + (good ? 5 : 2), mindset: s.general.mindset + (good ? 3 : -5), experience: s.general.experience + 3 } };
+            }},
+            { text: '划水摸鱼', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 2, experience: s.general.experience + 1 } }) },
+            { text: '假装生病请假', action: (s) => ({ general: { ...s.general, experience: s.general.experience - 1, mindset: s.general.mindset + 2 }, log: [...s.log, { message: "成功逃过一劫。", type: 'info', timestamp: Date.now() }] }) }
+        ]
+    },
+    {
+        id: 's1_overtime_teacher',
+        title: '老师拖堂',
+        description: '下课铃响了，但老师还在讲最后一道题的第三种解法...',
+        triggerType: 'RANDOM',
+        type: 'negative',
+        choices: [
+            { text: '耐心听完', action: (s) => ({ subjects: modifySub(s, ['math'], 1), general: { ...s.general, mindset: s.general.mindset - 1, health: s.general.health - 1 } }) },
+            { text: '趴桌抗议', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 2 } }) },
+            { text: '趁乱溜走', action: (s) => {
+                const caught = Math.random() < 0.4;
+                return caught
+                    ? { general: { ...s.general, mindset: s.general.mindset - 8, romance: s.general.romance - 2 }, log: [...s.log, { message: "被老师叫住了...", type: 'warning', timestamp: Date.now() }] }
+                    : { general: { ...s.general, mindset: s.general.mindset + 3, health: s.general.health + 1 }, log: [...s.log, { message: "成功溜走，呼吸到了新鲜空气。", type: 'success', timestamp: Date.now() }] };
+            }}
+        ]
+    },
+    {
+        id: 's1_self_study_choice',
+        title: '自习课的抉择',
+        description: '两节连排自习课，时间宝贵，你要怎么分配？',
+        triggerType: 'RANDOM',
+        type: 'neutral',
+        choices: [
+            { text: '专攻弱项', action: (s) => {
+                // Pick the subject with lowest level
+                const subs = s.selectedSubjects.length > 0 ? s.selectedSubjects : (Object.keys(SUBJECT_NAMES) as SubjectKey[]);
+                let lowest: SubjectKey = subs[0];
+                for (const sub of subs) if (s.subjects[sub].level < s.subjects[lowest].level) lowest = sub;
+                return { subjects: modifySub(s, [lowest], 4), general: { ...s.general, mindset: s.general.mindset - 2 } };
+            }},
+            { text: '均衡复习', action: (s) => ({ subjects: modifySub(s, ['math', 'chinese', 'english'], 1.5), general: { ...s.general, experience: s.general.experience + 1 } }) },
+            { text: '写其它科作业', action: (s) => ({ general: { ...s.general, experience: s.general.experience + 3, mindset: s.general.mindset + 1 } }) }
+        ]
     }
 ];
 

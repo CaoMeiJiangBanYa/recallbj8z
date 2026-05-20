@@ -8,11 +8,24 @@ import {
 import { DIFFICULTY_PRESETS } from '../data/constants';
 import { PHASE_EVENTS, BASE_EVENTS, CHAINED_EVENTS, generateSummerLifeEvent, generateStudyEvent, generateOIEvent, generateRandomFlavorEvent } from '../data/events';
 import { WEEKEND_ACTIVITIES, STATUSES, ACHIEVEMENTS } from '../data/mechanics';
-import { modifyOI, modifySub, mapAiEventToGameEvent } from '../data/utils';
+import { modifyOI, modifySub, mapAiEventToGameEvent, getActiveTalentPassives, applyEfficiencyPassive, applyMoneyPassive, applyRomancePassive, applyHealthRecoveryPassive, applyExperiencePassive, applyStatCaps, getShopPriceMultiplier, hasNoWeeklyMoney, hasNoDebtEvents, getRomanceEventMultiplier } from '../data/utils';
 import { generateBatchGameEvents } from '../lib/gemini';
 
-const STORAGE_KEY = 'recall_save_v1';
+const STORAGE_KEY_PREFIX = 'recall_save_v2';
 const ACHIEVEMENTS_KEY = 'recall_achievements_global';
+
+const getSaveKey = (difficulty?: Difficulty) => `${STORAGE_KEY_PREFIX}_${difficulty || 'unknown'}`;
+
+const getAllSaveKeys = (): string[] => {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(STORAGE_KEY_PREFIX)) keys.push(key);
+    }
+    return keys;
+};
+
+const hasAnySave = (): boolean => getAllSaveKeys().length > 0;
 
 const getInitialSubjects = (): Record<SubjectKey, { aptitude: number; level: number }> => ({
     chinese: { aptitude: 0, level: 0 },
@@ -106,10 +119,23 @@ export const useGameLogic = () => {
     const [weekendResult, setWeekendResult] = useState<{ activity: WeekendActivity; resultText: string; diff: string[] } | null>(null);
     const [hasSave, setHasSave] = useState(false);
 
-    useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) setHasSave(true);
+    const checkHasSave = useCallback((difficulty?: Difficulty) => {
+        if (difficulty) {
+            return !!localStorage.getItem(getSaveKey(difficulty));
+        }
+        return hasAnySave();
     }, []);
+
+    useEffect(() => {
+        setHasSave(hasAnySave());
+    }, []);
+
+    // 自动存档：每周/每阶段切换时静默保存
+    useEffect(() => {
+        if (state.phase !== Phase.INIT && state.phase !== Phase.ENDING && state.phase !== Phase.SELECTION) {
+            autoSave(state);
+        }
+    }, [state.week, state.phase]);
 
     const advancePhase = useCallback(() => {
         setState(prev => {
@@ -118,7 +144,7 @@ export const useGameLogic = () => {
             const currentPhase = prev.phase;
 
             switch (currentPhase) {
-                case Phase.INIT: nextPhase = Phase.SUMMER; weeks = 8; break;
+                case Phase.INIT: nextPhase = Phase.SUMMER; weeks = 5; break;
                 case Phase.SUMMER: nextPhase = Phase.MILITARY; weeks = 2; break; 
                 case Phase.MILITARY: nextPhase = Phase.SELECTION; weeks = 0; break; 
                 case Phase.SELECTION: nextPhase = Phase.PLACEMENT_EXAM; weeks = 0; break;
@@ -245,8 +271,8 @@ export const useGameLogic = () => {
             );
             weekEvents.push(...pendingFixed);
             
-            // 3a.2 Global Negative Triggers (Debt Event)
-            if (state.general.money < 0) {
+            // 3a.2 Global Negative Triggers (Debt Event) - 天赋免疫讨债
+            if (state.general.money < 0 && !hasNoDebtEvents(state)) {
                  const debt = Math.abs(state.general.money);
                  const prob = Math.min(1, Math.sqrt(debt) / 30);
                  if (Math.random() < prob && !state.recentEventIds.includes('debt_collection')) {
@@ -354,7 +380,9 @@ export const useGameLogic = () => {
     }, [state.isPlaying, state.currentEvent, state.isWeekend, state.week, state.phase, state.eventQueue.length, state.midtermRank, advancePhase, state.competition, state.triggeredEvents, state.isAiGenerating, state.aiBuffer, state.recentEventIds]);
 
     const calculateWeeklyUpdates = (prevState: GameState) => {
-        let moneyChange = 2; // Base weekly money
+        const passives = getActiveTalentPassives(prevState);
+        // 结构性天赋：家徒四壁不再获得每周固定收入
+        let moneyChange = hasNoWeeklyMoney(prevState) ? 0 : 2 * (passives.moneyGainMultiplier ?? 1);
         if (prevState.activeChallengeId === 'c_debt_king') {
             moneyChange -= 25; // Debt King Challenge: -25 money per week
         }
@@ -394,13 +422,29 @@ export const useGameLogic = () => {
     const applyWeeklyUpdates = (currentEvent: GameEvent, nextQueue: GameEvent[] = [], newTriggeredEvents: string[] = []) => {
         setState(prev => {
             const { updatedGeneral, updatedStatuses } = calculateWeeklyUpdates(prev);
-            
+
             // Update Anti-Repetition Buffer
             let newRecentIds = [...prev.recentEventIds];
-            // Only track RANDOM events for repetition prevention, ignore generated/fixed
             if (currentEvent.triggerType === 'RANDOM') {
                 newRecentIds.push(currentEvent.id);
-                if (newRecentIds.length > 4) newRecentIds.shift(); // Keep last 4
+                if (newRecentIds.length > 4) newRecentIds.shift();
+            }
+
+            // 每周知识进度反馈
+            let weeklyLog = [...prev.log];
+            if (prev.phase === Phase.SEMESTER_1 && prev.week > 0) {
+                const subs = prev.selectedSubjects.length > 0 ? prev.selectedSubjects : ['math', 'chinese', 'english'] as SubjectKey[];
+                const totalLevel = subs.reduce((sum, k) => sum + prev.subjects[k].level, 0);
+                const avgLevel = totalLevel / subs.length;
+                let feedback = '';
+                if (avgLevel < 10) feedback = '你对课程内容还很陌生，需要花时间打好基础。';
+                else if (avgLevel < 25) feedback = '你开始慢慢跟上节奏了，继续努力。';
+                else if (avgLevel < 45) feedback = '知识体系逐渐成形，解题时越来越有感觉。';
+                else if (avgLevel < 70) feedback = '你已经进入了高分段，各科都有不错的积累。';
+                else feedback = '你的学识已经超出了高中范围，开始思考更深层的问题。';
+                if (prev.week % 4 === 0) { // 每4周给一次反馈，不要太频繁
+                    weeklyLog = [...weeklyLog, { message: `📋 第${prev.week}周学习小结：${feedback}`, type: 'info', timestamp: Date.now() }];
+                }
             }
 
             return {
@@ -412,7 +456,8 @@ export const useGameLogic = () => {
                 triggeredEvents: [...prev.triggeredEvents, ...newTriggeredEvents],
                 recentEventIds: newRecentIds,
                 isPlaying: false,
-                aiBuffer: prev.difficulty === 'AI_STORY' && prev.aiBuffer.includes(currentEvent) 
+                log: weeklyLog,
+                aiBuffer: prev.difficulty === 'AI_STORY' && prev.aiBuffer.includes(currentEvent)
                     ? prev.aiBuffer.filter(e => e !== currentEvent)
                     : prev.aiBuffer
             };
@@ -438,20 +483,34 @@ export const useGameLogic = () => {
                 eventResult: null,
                 isWeekend: true,
                 isPlaying: false,
-                weekendActionPoints: 2,
+                weekendActionPoints: 1,
                 availableWeekendActivityIds: availableIds
             };
         });
     };
 
-    const saveGame = () => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const autoSave = (s: GameState) => {
+        const key = getSaveKey(s.difficulty);
+        localStorage.setItem(key, JSON.stringify(s));
         setHasSave(true);
+    };
+
+    const saveGame = () => {
+        autoSave(state);
         setState(s => ({ ...s, log: [...s.log, { message: "游戏进度已保存。", type: 'success', timestamp: Date.now() }] }));
     };
 
-    const loadGame = (): boolean => {
-        const saved = localStorage.getItem(STORAGE_KEY);
+    const loadGame = (difficulty?: Difficulty): boolean => {
+        let saved: string | null = null;
+        if (difficulty) {
+            saved = localStorage.getItem(getSaveKey(difficulty));
+        } else {
+            // 尝试所有存档，优先加载最近更新的
+            const keys = getAllSaveKeys();
+            if (keys.length > 0) {
+                saved = localStorage.getItem(keys[0]);
+            }
+        }
         if (saved) {
             try {
                 const loaded = JSON.parse(saved);
@@ -460,6 +519,7 @@ export const useGameLogic = () => {
                 const mergedAchievements = Array.from(new Set([...loaded.unlockedAchievements, ...globalAchievements]));
                 setState({
                     ...loaded,
+                    isAiGenerating: false, // 防止存档时正在生成AI事件导致读档后卡死
                     unlockedAchievements: mergedAchievements
                 });
                 return true;
@@ -563,18 +623,59 @@ export const useGameLogic = () => {
     const handleChoice = (choice: EventChoice, visualizer?: (oldS: GameState, newS: GameState) => string[]) => {
         const oldState = { ...state };
         let updates = choice.action(state);
-        
+
+        // Apply talent passives to efficiency/money/romance/health/experience deltas
+        if (updates.general) {
+            const oldEff = oldState.general.efficiency;
+            const newEff = updates.general.efficiency;
+            if (newEff !== undefined && newEff !== oldEff) {
+                const delta = newEff - oldEff;
+                const adjusted = applyEfficiencyPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, efficiency: oldEff + adjusted } };
+            }
+            const oldMoney = oldState.general.money;
+            const newMoney = updates.general.money;
+            if (newMoney !== undefined && newMoney > oldMoney) {
+                const delta = newMoney - oldMoney;
+                const adjusted = applyMoneyPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, money: oldMoney + adjusted } };
+            }
+            const oldRomance = oldState.general.romance;
+            const newRomance = updates.general.romance;
+            if (newRomance !== undefined && newRomance !== oldRomance) {
+                const delta = newRomance - oldRomance;
+                const adjusted = applyRomancePassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, romance: oldRomance + adjusted } };
+            }
+            const oldHealth = oldState.general.health;
+            const newHealth = updates.general.health;
+            if (newHealth !== undefined && newHealth > oldHealth) {
+                const delta = newHealth - oldHealth;
+                const adjusted = applyHealthRecoveryPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, health: oldHealth + adjusted } };
+            }
+            const oldExp = oldState.general.experience;
+            const newExp = updates.general.experience;
+            if (newExp !== undefined && newExp > oldExp) {
+                const delta = newExp - oldExp;
+                const adjusted = applyExperiencePassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, experience: oldExp + adjusted } };
+            }
+            // 应用结构性约束（上下限）
+            applyStatCaps(state, updates);
+        }
+
         if (choice.nextEventId && CHAINED_EVENTS[choice.nextEventId]) {
             updates.chainedEvent = CHAINED_EVENTS[choice.nextEventId];
         }
-        
+
         if (state.activeChallengeId === 'c_sleep_king' && (choice.text.includes('睡') || choice.text.includes('梦') || choice.text.includes('补觉'))) {
              updates = { ...updates, hasSleptThisWeek: true };
         }
 
         const newState = { ...state, ...updates };
         const diff = visualizer ? visualizer(oldState, newState) : [];
-        
+
         setState(prev => ({ ...prev, ...updates, eventResult: { choice, diff } }));
     };
 
@@ -618,16 +719,59 @@ export const useGameLogic = () => {
     };
     
     const handleShopPurchase = (item: Item, effectVisualizer: () => void) => {
+        const multiplier = getShopPriceMultiplier(state);
+        const actualPrice = Math.floor(item.price * multiplier);
+        if (state.general.money < actualPrice) return;
+
         const updates = item.effect(state);
+        // Refund the discount difference (item.effect deducts full item.price)
+        const refund = item.price - actualPrice;
+        if (refund > 0 && updates.general) {
+            updates.general.money = (updates.general.money ?? state.general.money) + refund;
+        }
         setState(prev => ({ ...prev, ...updates }));
         effectVisualizer();
     };
 
     const handleWeekendActivityClick = (activity: WeekendActivity, visualizer?: (oldS: GameState, newS: GameState) => string[]) => {
         if (state.weekendActionPoints <= 0) return;
-        
+
         const oldState = { ...state };
         let updates = activity.action(state);
+
+        // Apply talent passives to all stat deltas
+        if (updates.general) {
+            const oldEff = oldState.general.efficiency;
+            const newEff = updates.general.efficiency;
+            if (newEff !== undefined && newEff !== oldEff) {
+                const delta = newEff - oldEff;
+                const adjusted = applyEfficiencyPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, efficiency: oldEff + adjusted } };
+            }
+            const oldMoney = oldState.general.money;
+            const newMoney = updates.general.money;
+            if (newMoney !== undefined && newMoney > oldMoney) {
+                const delta = newMoney - oldMoney;
+                const adjusted = applyMoneyPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, money: oldMoney + adjusted } };
+            }
+            const oldRomance = oldState.general.romance;
+            const newRomance = updates.general.romance;
+            if (newRomance !== undefined && newRomance !== oldRomance) {
+                const delta = newRomance - oldRomance;
+                const adjusted = applyRomancePassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, romance: oldRomance + adjusted } };
+            }
+            const oldHealth = oldState.general.health;
+            const newHealth = updates.general.health;
+            if (newHealth !== undefined && newHealth > oldHealth) {
+                const delta = newHealth - oldHealth;
+                const adjusted = applyHealthRecoveryPassive(state, delta);
+                updates = { ...updates, general: { ...updates.general, health: oldHealth + adjusted } };
+            }
+            applyStatCaps(state, updates);
+        }
+
         let resultText = typeof activity.resultText === 'function' ? activity.resultText(state) : activity.resultText;
 
         // Challenge Check for Sleep King
@@ -766,8 +910,8 @@ export const useGameLogic = () => {
     });
 
     return {
-        state, setState, weekendResult, setWeekendResult, hasSave, saveGame, loadGame,
-        startGameState, handleChoice, handleEventConfirm, handleClubSelect, handleShopPurchase, 
+        state, setState, weekendResult, setWeekendResult, hasSave, checkHasSave, saveGame, loadGame,
+        startGameState, handleChoice, handleEventConfirm, handleClubSelect, handleShopPurchase,
         handleWeekendActivityClick, confirmWeekendActivity, handleExamFinish, closeCompetitionPopup, closeExamResult, closeMiniGame,
         weekendOptions
     };
