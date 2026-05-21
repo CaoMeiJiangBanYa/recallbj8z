@@ -71,7 +71,7 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
               type="text"
               value={settings.apiUrl}
               onChange={e => update('apiUrl', e.target.value)}
-              placeholder={DEFAULT_API_URL}
+              placeholder={DEEPSEEK_OFFICIAL_URL}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-mono focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
             />
             <p className="text-[10px] text-slate-400 mt-1">
