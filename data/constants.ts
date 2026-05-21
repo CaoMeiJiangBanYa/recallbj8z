@@ -2,6 +2,7 @@
 import { Difficulty, GeneralStats } from '../types';
 
 export const CHANGELOG_DATA = [
+    { version: 'v1.4', date: '2026-5-21', content: ['优化了主界面排版', '新增自定义 API 配置', '保存进度方式改为自动保存', '优化了排行榜的显示', '新增重置成就功能', '新增代理节点默认 API Key'] },
     { version: 'v1.3/beta', date: '2026-1-22', content: ['新增【无限重开 AI版】，接入 Gemini API 实现动态事件。', '优化了负债逻辑，现在负债会有分级 Debuff。'] },
     { version: 'v1.2/testing', date: '2026-1-21', content: ['实装了每日挑战','修复了已知问题'] },
     { version: 'v1.1.2/testing', date: '2026-1-15', content: ['1.2试运行','修改了主页','增加了深色模式和存档功能（可能会有若干bug）','添加了若干事件和成就'] },

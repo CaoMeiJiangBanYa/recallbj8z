@@ -17,6 +17,7 @@ interface HomeViewProps {
     hasSave: boolean;
     onLoadGame: () => void;
     unlockedAchievements: string[];
+    onResetAchievements: () => void;
 }
 
 const SPONSORS = [
@@ -34,12 +35,12 @@ const SPONSORS = [
 // );
 // 矮按钮版本
 const UtilityButton = ({ icon, label, onClick, color }: { icon: string, label: string, onClick: () => void, color: string }) => (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${color}`}>
+    <button onClick={onClick} className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${color}`}>
         <i className={`fas ${icon}`}></i> {label}
     </button>
 );
 
-const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyChange, customStats, onCustomStatsChange, onCustomStatsConfirm, onStart, hasSave, onLoadGame, unlockedAchievements }) => {
+const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyChange, customStats, onCustomStatsChange, onCustomStatsConfirm, onStart, hasSave, onLoadGame, unlockedAchievements, onResetAchievements }) => {
     const [showChangelog, setShowChangelog] = React.useState(false);
     const [showSponsor, setShowSponsor] = React.useState(false);
     const [showSettings, setShowSettings] = React.useState(false);
@@ -67,11 +68,20 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
             try {
                 // Fetch Top Scores for the active challenge
                 if (activeChallenge) {
-                    const { data } = await getLeaderboard(activeChallenge.id, 5);
-                    if (data) {
-                        // @ts-ignore
-                        setTopScores(data);
+                    let allData: any[] = [];
+                    let offset = 0;
+                    const batchSize = 100;
+                    while (allData.length < 5) {
+                        const { data } = await getLeaderboard(activeChallenge.id, batchSize, offset);
+                        if (!data || data.length === 0) break;
+                        allData = allData.concat(data);
+                        if (data.length < batchSize) break;
+                        offset += batchSize;
                     }
+                    const allowedRanks = ['SSS', 'A', 'C', 'F', 'S', 'B'];
+                    const allowedTitles = ['高中毕业生', '遗憾离场'];
+                    const filtered = allData.filter((e: any) => allowedRanks.includes(e.details?.rank) && allowedTitles.includes(e.details?.title) && e.score <= 10000);
+                    setTopScores(filtered.slice(0, 5));
                 }
             } catch (e) {
                 console.error('Error fetching data', e);
@@ -204,7 +214,7 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
                              <UtilityButton icon="fa-trophy" label="成就墙" onClick={() => setShowAchievements(true)} color="text-yellow-600 bg-yellow-50 hover:bg-yellow-100" />
                              <UtilityButton icon="fa-list-ol" label="排行榜" onClick={() => openLeaderboard(null)} color="text-purple-600 bg-purple-50 hover:bg-purple-100" />
                              <UtilityButton icon="fa-video" label="宣传片" onClick={() => setShowVideo(true)} color="text-pink-600 bg-pink-50 hover:bg-pink-100" />
-                             <UtilityButton icon="fa-history" label="日志" onClick={() => setShowChangelog(true)} color="text-indigo-600 bg-indigo-50 hover:bg-indigo-100" />
+                             <UtilityButton icon="fa-history" label="更新日志" onClick={() => setShowChangelog(true)} color="text-indigo-600 bg-indigo-50 hover:bg-indigo-100" />
                              <UtilityButton icon="fa-heart" label="赞助" onClick={() => setShowSponsor(true)} color="text-rose-600 bg-rose-50 hover:bg-rose-100" />
                              <UtilityButton icon="fa-cog" label="关于" onClick={() => setShowSettings(true)} color="text-slate-600 bg-slate-50 hover:bg-slate-100" />
                         </div>
@@ -352,7 +362,10 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
                                 <h2 className="text-3xl font-black text-slate-800">成就墙</h2>
                                 <p className="text-sm text-slate-500 font-medium mt-1">已解锁 <span className="text-indigo-600 font-bold">{unlockedAchievements.length}</span> / {Object.keys(ACHIEVEMENTS).length}</p>
                              </div>
-                             <button onClick={() => setShowAchievements(false)} className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"><i className="fas fa-times"></i></button>
+                             <div className="flex gap-2">
+                                <button onClick={() => { if (confirm('确定要重置所有成就吗？此操作不可恢复。')) onResetAchievements(); }} className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 text-sm font-bold transition-colors"><i className="fas fa-undo-alt mr-1"></i>重置</button>
+                                <button onClick={() => setShowAchievements(false)} className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"><i className="fas fa-times"></i></button>
+                            </div>
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scroll grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-2">
                             {Object.values(ACHIEVEMENTS).map(ach => {
@@ -492,7 +505,7 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
                              <div className="space-y-4">
                                  <h3 className="font-black text-slate-400 uppercase tracking-widest text-xs border-b border-slate-100 pb-2">FAQ</h3>
                                  <div className="text-sm text-slate-600 space-y-2">
-                                     <p><span className="font-bold text-slate-800">Q: 怎么存档？</span><br/>A: 点击主页或游戏侧边栏的保存按钮即可。</p>
+                                     <p><span className="font-bold text-slate-800">Q: 怎么存档？</span><br/>A: 游戏自动保存进度，无需操作。</p>
                                  </div>
                              </div>
                          </div>

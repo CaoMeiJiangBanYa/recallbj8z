@@ -2,7 +2,7 @@
 import { GameState, SUBJECT_NAMES, SubjectKey, ApiSettings } from '../types';
 
 const DEFAULT_API_URL = "https://api.chatanywhere.tech/v1/chat/completions";
-const DEFAULT_MODEL = "deepseek-chat";
+const DEFAULT_MODEL = "DeepSeek-v4-flash";
 
 const STORAGE_KEY_API = 'bj8z_api_settings';
 

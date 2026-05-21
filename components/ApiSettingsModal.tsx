@@ -4,7 +4,7 @@ import { getApiSettings, saveApiSettings } from '../lib/gemini';
 
 const DEFAULT_API_URL = "https://api.chatanywhere.tech/v1/chat/completions";
 const DEEPSEEK_OFFICIAL_URL = "https://api.deepseek.com/chat/completions";
-const DEFAULT_MODEL = "deepseek-chat";
+const DEFAULT_MODEL = "DeepSeek-v4-flash";
 
 interface Props {
   onClose: () => void;
@@ -55,22 +55,14 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
             </label>
             <div className="flex gap-2 mb-2">
               <button
-                onClick={() => update('apiUrl', DEEPSEEK_OFFICIAL_URL)}
-                className={`text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all ${
-                  settings.apiUrl === DEEPSEEK_OFFICIAL_URL
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200'
-                }`}
+                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEEPSEEK_OFFICIAL_URL, apiKey: prev.apiKey === 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag' ? '' : prev.apiKey }))}
+                className="text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200"
               >
                 <i className="fas fa-check-circle mr-1"></i>DeepSeek 官方
               </button>
               <button
-                onClick={() => update('apiUrl', DEFAULT_API_URL)}
-                className={`text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all ${
-                  settings.apiUrl === DEFAULT_API_URL
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200'
-                }`}
+                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEFAULT_API_URL, apiKey: 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag' }))}
+                className="text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200"
               >
                 <i className="fas fa-check-circle mr-1"></i>ChatAnywhere 代理
               </button>
@@ -101,7 +93,6 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
             />
             <p className="text-[10px] text-slate-400 mt-1">
               使用自己的 DeepSeek API Key 以获得更稳定的体验。
-              <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline ml-1">获取 Key →</a>
             </p>
           </div>
 
@@ -117,7 +108,7 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
               placeholder={DEFAULT_MODEL}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-mono focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
             />
-            <p className="text-[10px] text-slate-400 mt-1">留空使用默认模型。可用: deepseek-chat, deepseek-reasoner 等</p>
+            <p className="text-[10px] text-slate-400 mt-1">留空使用默认模型。可用: deepseek-chat, deepseek-reasoner, DeepSeek-v4-flash 等</p>
           </div>
 
           {/* Custom Prompt Toggle + Editor */}

@@ -32,12 +32,13 @@ export const uploadScore = async (entry: Omit<LeaderboardEntry, 'id' | 'created_
     return await supabase.from('leaderboard').insert([entry]);
 };
 
-export const getLeaderboard = async (challengeId: string | null = null, limit = 50) => {
+export const getLeaderboard = async (challengeId: string | null = null, limit = 50, offset = 0) => {
     let query = supabase
         .from('leaderboard')
         .select('*')
         .order('score', { ascending: false })
-        .limit(limit);
+        .limit(limit)
+        .range(offset, offset + limit - 1);
 
     if (challengeId) {
         query = query.eq('challenge_id', challengeId);

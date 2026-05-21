@@ -179,11 +179,15 @@ const App: React.FC = () => {
 
   if (view === 'HOME') {
       return (
-          <HomeView 
+          <HomeView
             selectedDifficulty={selectedDifficulty} onDifficultyChange={handleDifficultyChange}
             customStats={customStats} onCustomStatsChange={setCustomStats} onCustomStatsConfirm={handleCustomStatsConfirm}
             onStart={prepareGame} hasSave={difficultyHasSave} onLoadGame={handleLoadGame}
             unlockedAchievements={state.unlockedAchievements}
+            onResetAchievements={() => {
+              localStorage.removeItem('recall_achievements_global');
+              setState(p => ({ ...p, unlockedAchievements: [] }));
+            }}
           />
       );
   }
