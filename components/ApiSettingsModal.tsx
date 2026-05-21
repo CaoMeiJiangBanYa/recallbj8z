@@ -61,7 +61,7 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
                 <i className="fas fa-check-circle mr-1"></i>DeepSeek 官方
               </button>
               <button
-                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEFAULT_API_URL, apiKey: 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag' }))}
+                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEFAULT_API_URL, apiKey: 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag', modelName: 'deepseek-chat' }))}
                 className="text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200"
               >
                 <i className="fas fa-check-circle mr-1"></i>ChatAnywhere 代理
