@@ -21,9 +21,7 @@ interface HomeViewProps {
 }
 
 const SPONSORS = [
-    { name: '爱发电用户_258c7', avatar: 'https://pic1.afdiancdn.com/default/avatar/avatar-purple.png', label: '发电榜一', id: 's1' },
-    { name: 'Anby_', avatar: 'https://pic1.afdiancdn.com/user/dc3ad9282ab911ed94aa52540025c377/avatar/e41d1c836b39710f71c42c3d8c03985b_w3000_h3000_s863.jpeg?imageView2/1/w/240/h/240', label: '发电榜二', id: 's2' },
-    { name: '爱发电用户_s45p', avatar: 'https://pic1.afdiancdn.com/default/avatar/avatar-blue.png', label: '发电榜三', id: 's3' },
+    { name: '暂无赞助', avatar: 'https://pic1.afdiancdn.com/default/avatar/avatar-gray.png', label: '敬请期待', id: 's0' }
 ];
 
 // 高按钮版本
@@ -466,7 +464,7 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
                              ))}
                              
                              <p className="text-xs text-slate-400 mt-4 mb-6">金主列表每周更新一次，可能有时间延迟</p>
-                             <a href="https://afdian.com/a/liuenyin?tab=home" target="_blank" rel="noopener noreferrer" className="block w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+                             <a href="https://afdian.com/a/_bj8z?tab=home" target="_blank" rel="noopener noreferrer" className="block w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
                                  <i className="fas fa-bolt mr-2"></i> 前往爱发电支持作者
                              </a>
                          </div>
