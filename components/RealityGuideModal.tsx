@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { STAT_THRESHOLDS, EFFICIENCY_THRESHOLDS, SUBJECT_THRESHOLDS } from '../data/constants';
 
 interface RealityGuideModalProps {
     onClose: () => void;
@@ -44,12 +45,9 @@ const RealityGuideModal: React.FC<RealityGuideModalProps> = ({ onClose }) => {
                                 <h3 className="font-bold text-slate-900 mb-2 border-l-4 border-indigo-500 pl-2">五维属性 (0-100+)</h3>
                                 <p className="text-xs text-slate-500 mb-2">适用于：心态、经验、魅力、健康、运气</p>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="p-2 bg-rose-50 text-rose-700 rounded border border-rose-100 flex justify-between"><span>糟糕透顶</span> <span>&lt; 20</span></div>
-                                    <div className="p-2 bg-orange-50 text-orange-600 rounded border border-orange-100 flex justify-between"><span>不太妙</span> <span>20 - 39</span></div>
-                                    <div className="p-2 bg-slate-50 text-slate-600 rounded border border-slate-200 flex justify-between"><span>平平无奇</span> <span>40 - 59</span></div>
-                                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded border border-emerald-100 flex justify-between"><span>感觉良好</span> <span>60 - 79</span></div>
-                                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 flex justify-between"><span>充满自信</span> <span>80 - 99</span></div>
-                                    <div className="p-2 bg-amber-50 text-amber-600 rounded border border-amber-100 flex justify-between font-bold"><span>超凡脱俗</span> <span>&ge; 100</span></div>
+                                    {STAT_THRESHOLDS.map(t => (
+                                        <div key={t.label} className={`p-2 bg-${t.color}-50 text-${t.color}-700 rounded border border-${t.color}-100 flex justify-between${t.min >= 100 ? ' font-bold' : ''}`}><span>{t.label}</span> <span>{t.range}</span></div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -57,24 +55,18 @@ const RealityGuideModal: React.FC<RealityGuideModalProps> = ({ onClose }) => {
                                 <h3 className="font-bold text-slate-900 mb-2 border-l-4 border-indigo-500 pl-2">学习效率 (状态)</h3>
                                 <p className="text-xs text-slate-500 mb-2">普通模式下基础值为14，范围约 -5 ~ 25</p>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="p-2 bg-rose-50 text-rose-700 rounded border border-rose-100 flex justify-between"><span>极度涣散</span> <span>&lt; 0</span></div>
-                                    <div className="p-2 bg-orange-50 text-orange-600 rounded border border-orange-100 flex justify-between"><span>心不在焉</span> <span>0 - 5</span></div>
-                                    <div className="p-2 bg-slate-50 text-slate-600 rounded border border-slate-200 flex justify-between"><span>普普通通</span> <span>5 - 10</span></div>
-                                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 flex justify-between"><span>专注</span> <span>10 - 15</span></div>
-                                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded border border-emerald-100 flex justify-between"><span>高效</span> <span>15 - 20</span></div>
-                                    <div className="p-2 bg-amber-50 text-amber-600 rounded border border-amber-100 flex justify-between font-bold"><span>心流</span> <span>&ge; 20</span></div>
+                                    {EFFICIENCY_THRESHOLDS.map(t => (
+                                        <div key={t.label} className={`p-2 bg-${t.color}-50 text-${t.color}-700 rounded border border-${t.color}-100 flex justify-between${t.min >= 20 ? ' font-bold' : ''}`}><span>{t.label}</span> <span>{t.range}</span></div>
+                                    ))}
                                 </div>
                             </div>
 
                             <div>
                                 <h3 className="font-bold text-slate-900 mb-2 border-l-4 border-indigo-500 pl-2">学科掌握 (Level)</h3>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div className="p-2 bg-rose-50 text-rose-700 rounded border border-rose-100 flex justify-between"><span>一窍不通</span> <span>&lt; 10</span></div>
-                                    <div className="p-2 bg-orange-50 text-orange-600 rounded border border-orange-100 flex justify-between"><span>略懂皮毛</span> <span>10 - 24</span></div>
-                                    <div className="p-2 bg-slate-50 text-slate-600 rounded border border-slate-200 flex justify-between"><span>马马虎虎</span> <span>25 - 44</span></div>
-                                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 flex justify-between"><span>渐入佳境</span> <span>45 - 64</span></div>
-                                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded border border-emerald-100 flex justify-between"><span>得心应手</span> <span>65 - 84</span></div>
-                                    <div className="p-2 bg-amber-50 text-amber-600 rounded border border-amber-100 flex justify-between font-bold"><span>登峰造极</span> <span>&ge; 85</span></div>
+                                    {SUBJECT_THRESHOLDS.map(t => (
+                                        <div key={t.label} className={`p-2 bg-${t.color}-50 text-${t.color}-700 rounded border border-${t.color}-100 flex justify-between${t.min >= 85 ? ' font-bold' : ''}`}><span>{t.label}</span> <span>{t.range}</span></div>
+                                    ))}
                                 </div>
                             </div>
                         </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GameState, ExamResult, SubjectKey, SUBJECT_NAMES, Phase, OIProblem, OIStats } from '../types';
+import { GameState, ExamResult, SubjectKey, SUBJECT_NAMES, Phase, OIProblem } from '../types';
 import { OI_PROBLEMS } from '../data/oi_data';
 import { getExamScoreMultiplier } from '../data/utils';
 
@@ -118,8 +118,8 @@ const ExamView: React.FC<ExamViewProps> = ({ title, state, onFinish }) => {
              let rawRatio = ability / difficultyFactor;
              let finalRatio = rawRatio * luckMultiplier;
              
-             if (finalRatio >= 0.95) score = 100; 
-             else score = Math.floor(Math.min(100, finalRatio * 100));
+             if (finalRatio >= 0.95) score = 100;
+             else score = Math.max(0, Math.floor(Math.min(100, finalRatio * 100)));
              
              logMsg = `题目 "${prob.name}" 测试结束，获得 ${score} 分${extraLog}。`;
 
@@ -171,7 +171,7 @@ const ExamView: React.FC<ExamViewProps> = ({ title, state, onFinish }) => {
     } else if (!isFinished) {
       setIsFinished(true);
     }
-  }, [examStep, state, currentScores, isFinished, subjectsToTest, oiProblems]);
+  }, [examStep, state, subjectsToTest]);
 
   const handleFinishConfirm = () => {
       const total = (Object.values(currentScores) as number[]).reduce((a, b) => a + b, 0);

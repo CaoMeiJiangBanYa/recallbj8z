@@ -22,12 +22,13 @@ export const CHAINED_EVENTS: Record<string, GameEvent> = {
         description: '“你是个好人，但我现在只想好好学习。”',
         type: 'negative',
         choices: [{ 
-            text: '心碎满地', 
-            action: (s) => ({ 
+            text: '心碎满地',
+            action: (s) => ({
                 general: { ...s.general, mindset: s.general.mindset - 20 },
                 rejectionCount: (s.rejectionCount || 0) + 1,
-                log: [...s.log, { message: "被发好人卡了... ", type: 'warning', timestamp: Date.now() }] 
-            }) 
+                activeStatuses: [...s.activeStatuses, { ...STATUSES['heartbroken'], duration: 3 }],
+                log: [...s.log, { message: "被发好人卡了... ", type: 'warning', timestamp: Date.now() }]
+            })
         }]   
     },
     'mil_star_performance': {
@@ -40,7 +41,7 @@ export const CHAINED_EVENTS: Record<string, GameEvent> = {
     'evt_red_packet': {
         id: 'evt_red_packet',
         title: '新年红包',
-        description: '过年了，亲戚们最关心的果然还是考试的成绩...',
+        description: '过年了，亲戚们最关心的果然还是你的学习状态...',
         type: 'positive',
         choices: [{
             text: '收下红包',
@@ -127,7 +128,7 @@ export const BASE_EVENTS: Record<string, GameEvent> = {
             { 
                 text: '还钱 (金钱归零)', 
                 action: (s) => ({ 
-                    general: { ...s.general, money: 0, mindset: s.general.mindset - 40, health: s.general.health - 20,romance: s.general.romance-=10 },
+                    general: { ...s.general, money: 0, mindset: s.general.mindset - 40, health: s.general.health - 20,romance: s.general.romance - 10 },
                     log: [...s.log, { message: "你被迫还清了所有债务（虽然本来就是负的）。", type: 'warning', timestamp: Date.now() }]
                 }) 
             },

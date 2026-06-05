@@ -1,5 +1,5 @@
 
-import { GameState, SUBJECT_NAMES, SubjectKey, ApiSettings } from '../types';
+import { GameState, SUBJECT_NAMES, SubjectKey, ApiSettings, Phase } from '../types';
 
 const DEFAULT_API_URL = "https://api.chatanywhere.tech/v1/chat/completions";
 const DEFAULT_MODEL = "DeepSeek-v4-flash";
@@ -55,7 +55,7 @@ const buildSystemPrompt = (state: GameState, customPrompt?: string): string => {
   return `你是一个 Roguelike 文字冒险游戏【北京八中重开模拟器】的事件生成引擎。玩家在高中生活中不断遭遇随机事件并做出选择，每次选择都会影响属性数值。这不是策略分析游戏——你只需要生成有趣、多样、有沉浸感的高中生活事件。
 
 【游戏背景】
-玩家是北京八中高一新生。游戏阶段：暑假(${state.phase === 'SUMMER' ? '当前' : '已过'}) → 军训(${state.phase === 'MILITARY' ? '当前' : '已过'}) → 高一上学期（第11周期中，第21周期末）。
+玩家是北京八中高一新生。游戏阶段：暑假(${state.phase === Phase.SUMMER ? '当前' : '已过'}) → 军训(${state.phase === Phase.MILITARY ? '当前' : '已过'}) → 高一上学期（第11周期中，第21周期末）。
 
 【当前状态】
 - 身份: ${state.competition === 'OI' ? '信竞生 (OIer)' : '高考生'}
@@ -149,11 +149,7 @@ export const generateBatchGameEvents = async (state: GameState) => {
   const apiUrl = normalizeApiUrl(rawUrl);
   const modelName = settings.modelName || DEFAULT_MODEL;
 
-  // Use custom API key if set, otherwise fall back to env key
-  const apiKey = settings.apiKey ||
-    (import.meta as any).env?.VITE_API_KEY ||
-    (import.meta as any).env?.GEMINI_API_KEY ||
-    (process as any).env?.API_KEY;
+  const apiKey = settings.apiKey;
 
   if (!apiKey) {
     console.error("API Key is missing!");
@@ -165,14 +161,18 @@ export const generateBatchGameEvents = async (state: GameState) => {
     settings.apiKey ? settings.customPrompt : undefined // Only use custom prompt with custom API
   );
 
+  let timeoutId: ReturnType<typeof setTimeout>;
   try {
     console.log(`[AI] Calling: ${apiUrl} with model ${modelName}`);
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), 30000);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: modelName,
         messages: [
@@ -182,6 +182,7 @@ export const generateBatchGameEvents = async (state: GameState) => {
         temperature: 1.2
       })
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
@@ -208,6 +209,7 @@ export const generateBatchGameEvents = async (state: GameState) => {
     return parsed;
 
   } catch (error: any) {
+    clearTimeout(timeoutId);
     const errMsg = error?.message || String(error);
     console.error("AI API Error:", errMsg);
     return [{

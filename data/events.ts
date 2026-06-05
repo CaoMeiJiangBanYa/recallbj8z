@@ -1,5 +1,5 @@
 
-import { GameState, GameEvent, SubjectKey, SUBJECT_NAMES, OIStats, EventChoice, Phase } from '../types';
+import { GameState, GameEvent, SubjectKey, SUBJECT_NAMES, EventChoice, Phase } from '../types';
 import { modifySub, modifyOI } from './utils';
 import { STATUSES } from './mechanics';
 import { CHAINED_EVENTS, SCIENCE_FESTIVAL_EVENT, NEW_YEAR_GALA_EVENT } from './event_defs';
@@ -47,7 +47,7 @@ const SUMMER_EVENTS_RAW: GameEvent[] = [
                 competition: 'OI', 
                 log: [...s.log, { message: "你选择了信息竞赛(OI)。注意：这条线会丧失很多普通事件，且周末自由时间减少", type: 'warning', timestamp: Date.now() }],
                 general: { ...s.general, experience: s.general.experience + 10 },
-                oiStats: { ...s.oiStats, misc: 5 }
+                oiStats: modifyOI(s, { misc: 5 })
                 }) 
             },
             { 
@@ -188,7 +188,7 @@ const SUMMER_EVENTS_RAW: GameEvent[] = [
         triggerType: 'RANDOM',
         choices: [
             { text: '报名参加 (-10金钱)', action: (s) => ({ general: { ...s.general, experience: s.general.experience + 15, money: s.general.money - 10 } }) },
-            { text: '太贵了', action: (s) => ({ general: { ...s.general, money: s.general.money + 5 } }) }
+            { text: '太贵了', action: (s) => ({ general: { ...s.general, money: s.general.money + 5, mindset: s.general.mindset - 2 } }) }
         ]
     },
     {
@@ -242,7 +242,7 @@ const SUMMER_EVENTS_RAW: GameEvent[] = [
         type: 'neutral',
         triggerType: 'RANDOM', // Set as RANDOM
         choices: [
-            { text: '忍痛付款', action: (s) => ({ general: { ...s.general, money: s.general.money - 20, mindset: s.general.mindset -1 } }) },
+            { text: '忍痛付款', action: (s) => ({ general: { ...s.general, money: s.general.money - 18, mindset: s.general.mindset -1 } }) },
             { text: '默默放回', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 4 } }) }
         ]
     },
@@ -254,7 +254,7 @@ const SUMMER_EVENTS_RAW: GameEvent[] = [
         triggerType: 'RANDOM', // Set as RANDOM
         choices: [
             { text: '通宵对峙', action: (s) => ({ general: { ...s.general, health: s.general.health - 5, mindset: s.general.mindset - 5, efficiency: s.general.efficiency - 2 } }) },
-            { text: '点蚊香睡大觉', action: (s) => ({ general: { ...s.general, health: s.general.health - 1 }, log: [...s.log, { message: "虽然有点呛，但至少睡着了。", type: 'info', timestamp: Date.now() }] }) }
+            { text: '点蚊香睡大觉', action: (s) => ({ general: { ...s.general, health: s.general.health - 1 }, sleepCount: (s.sleepCount || 0) + 1, log: [...s.log, { message: "虽然有点呛，但至少睡着了。", type: 'info', timestamp: Date.now() }] }) }
         ]
     }
 ];
@@ -360,7 +360,7 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
                     log: [...s.log, { message: "你选择默默暗恋，这种感觉也不错。", type: 'info', timestamp: Date.now() }]
                 }) 
             },
-            { text: '回班睡觉', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 0 }, sleepCount: (s.sleepCount || 0) + 1 }) }
+            { text: '回班睡觉', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3 }, sleepCount: (s.sleepCount || 0) + 1 }) }
         ]
     },
     {
@@ -395,8 +395,8 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
     {
         id: 'evt_fight',
         title: '争吵',
-        description: (s: GameState) => `你和${s.romancePartner || '父母'}发生了一些不愉快，气氛降到了冰点。`,
-        condition: (s) => !!s.romancePartner || Math.random() < 0.5,
+        description: (s: GameState) => `你和${s.romancePartner}发生了一些不愉快，气氛降到了冰点。`,
+        condition: (s) => !!s.romancePartner,
         triggerType: 'RANDOM',
         type: 'negative',
         choices: [
@@ -438,7 +438,7 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
                 action: (s) => ({ 
                     romancePartner: null,
                     general: { ...s.general, mindset: s.general.mindset - 40, health: s.general.health - 10 },
-                    activeStatuses: s.activeStatuses.filter(st => st.id !== 'in_love'),
+                    activeStatuses: [...s.activeStatuses.filter(st => st.id !== 'in_love'), { ...STATUSES['heartbroken'], duration: 4 }],
                     log: [...s.log, { message: "这段感情画上了句号。", type: 'error', timestamp: Date.now() }]
                 }) 
             }
@@ -453,7 +453,7 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
         triggerType: 'RANDOM',
         choices: [
             { text: '偷学动态规划', action: (s) => ({ oiStats: modifyOI(s, { dp: 1 }), general: { ...s.general, experience: s.general.experience + 1 } }) },
-            { text: '偷学数据结构', action: (s) => ({ oiStats: modifyOI(s, { dp: 1 }), general: { ...s.general, experience: s.general.experience + 1 } }) },
+            { text: '偷学数据结构', action: (s) => ({ oiStats: modifyOI(s, { ds: 1 }), general: { ...s.general, experience: s.general.experience + 1 } }) },
             { text: '不卷了，睡觉', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 1 }, sleepCount: (s.sleepCount || 0) + 1 }) }
         ]
     },
@@ -467,7 +467,7 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
         choices: [
             { text: '大杀四方', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 2, experience: s.general.experience - 1 } }) },
             { text: '被虐了', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 1 } }) },
-            { text: '被教练抓包', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 5 }, isGrounded: true }) }
+            { text: '被教练抓包', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 5 }, activeStatuses: [...s.activeStatuses, { ...STATUSES['anxious'], duration: 2 }] }) }
         ]
     },
     {
@@ -479,7 +479,7 @@ const SEMESTER_1_EVENTS_RAW: GameEvent[] = [
         triggerType: 'RANDOM',
         choices: [
             { text: '思考人生意义', action: (s) => ({ general: { ...s.general, mindset: s.general.mindset - 1 } }) },
-            { text: '选择遗忘', action: (s) => ({ general: { ...s.general, experience: Math.max(0, s.general.experience - 2) }, log: [...s.log, { message: "你选择性遗忘了一些痛苦的算法...", type: 'info', timestamp: Date.now() }] }) }
+            { text: '选择遗忘', action: (s) => ({ oiStats: modifyOI(s, { dp: -1, ds: -1 }), general: { ...s.general, mindset: s.general.mindset + 2 }, log: [...s.log, { message: "你选择性遗忘了一些痛苦的算法...脑子轻松了一点。", type: 'info', timestamp: Date.now() }] }) }
         ]
     },
     {

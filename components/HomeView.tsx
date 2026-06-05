@@ -3,7 +3,7 @@ import { Difficulty, GeneralStats, Challenge } from '../types';
 import { DIFFICULTY_PRESETS, CHANGELOG_DATA } from '../data/constants';
 import { ACHIEVEMENTS } from '../data/mechanics';
 import { IRREGULAR_CHALLENGES } from '../data/challenges';
-import { supabase, getLeaderboard, LeaderboardEntry } from '../lib/supabase';
+import { getLeaderboard, LeaderboardEntry, getUseNewDb, setUseNewDb, filterLeaderboardEntry } from '../lib/supabase';
 import LeaderboardModal from './LeaderboardModal';
 import ApiSettingsModal from './ApiSettingsModal';
 
@@ -24,13 +24,6 @@ const SPONSORS = [
     { name: '暂无赞助', avatar: 'https://pic1.afdiancdn.com/default/avatar/avatar-gray.png', label: '敬请期待', id: 's0' }
 ];
 
-// 高按钮版本
-// const UtilityButton: React.FC<{ icon: string, label: string, onClick: () => void, color: string }> = ({ icon, label, onClick, color }) => (
-//     <button onClick={onClick} className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl transition-all active:scale-95 shadow-sm ${color}`}>
-//         <i className={`fas ${icon} text-lg md:text-xl mb-1`}></i>
-//         <span className="text-[10px] md:text-xs font-bold">{label}</span>
-//     </button>
-// );
 // 矮按钮版本
 const UtilityButton = ({ icon, label, onClick, color }: { icon: string, label: string, onClick: () => void, color: string }) => (
     <button onClick={onClick} className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap ${color}`}>
@@ -39,56 +32,55 @@ const UtilityButton = ({ icon, label, onClick, color }: { icon: string, label: s
 );
 
 const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyChange, customStats, onCustomStatsChange, onCustomStatsConfirm, onStart, hasSave, onLoadGame, unlockedAchievements, onResetAchievements }) => {
-    const [showChangelog, setShowChangelog] = React.useState(false);
-    const [showSponsor, setShowSponsor] = React.useState(false);
-    const [showSettings, setShowSettings] = React.useState(false);
-    const [showAchievements, setShowAchievements] = React.useState(false);
-    const [showQQGroup, setShowQQGroup] = React.useState(false);
-    const [showVideo, setShowVideo] = React.useState(false);
-    const [showApiSettings, setShowApiSettings] = React.useState(false);
-    const [showCustomStats, setShowCustomStats] = React.useState(false);
-    
+    const [showChangelog, setShowChangelog] = useState(false);
+    const [showSponsor, setShowSponsor] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showAchievements, setShowAchievements] = useState(false);
+    const [showQQGroup, setShowQQGroup] = useState(false);
+    const [showVideo, setShowVideo] = useState(false);
+    const [showApiSettings, setShowApiSettings] = useState(false);
+    const [showCustomStats, setShowCustomStats] = useState(false);
+
     // Leaderboard State
-    const [showLeaderboard, setShowLeaderboard] = React.useState(false);
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [leaderboardInitId, setLeaderboardInitId] = useState<string | null>(null);
     const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
-
     // Challenges State
     const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
     const [showPastChallenges, setShowPastChallenges] = useState(false);
     const [loadingChallenges, setLoadingChallenges] = useState(true);
+    const [loadingScores, setLoadingScores] = useState(false);
+    const [useNewDb, setUseNew] = useState(() => getUseNewDb());
 
     const activeChallenge = IRREGULAR_CHALLENGES[showPastChallenges ? Math.max(1, currentChallengeIndex) : 0];
 
     useEffect(() => {
         const fetchScores = async () => {
-            setLoadingChallenges(true);
+            setLoadingScores(true);
             try {
                 // Fetch Top Scores for the active challenge
                 if (activeChallenge) {
                     let allData: any[] = [];
                     let offset = 0;
                     const batchSize = 100;
-                    while (allData.length < 5) {
-                        const { data } = await getLeaderboard(activeChallenge.id, batchSize, offset);
+                    while (allData.length < 10) {
+                        const { data } = await getLeaderboard(activeChallenge.id, batchSize, offset, useNewDb);
                         if (!data || data.length === 0) break;
                         allData = allData.concat(data);
                         if (data.length < batchSize) break;
                         offset += batchSize;
                     }
-                    const allowedRanks = ['SSS', 'A', 'C', 'F', 'S', 'B'];
-                    const allowedTitles = ['高中毕业生', '遗憾离场'];
-                    const filtered = allData.filter((e: any) => allowedRanks.includes(e.details?.rank) && allowedTitles.includes(e.details?.title) && e.score <= 10000);
-                    setTopScores(filtered.slice(0, 5));
+                    setTopScores(allData.filter(filterLeaderboardEntry));
                 }
             } catch (e) {
                 console.error('Error fetching data', e);
             } finally {
                 setLoadingChallenges(false);
+                setLoadingScores(false);
             }
         };
         fetchScores();
-    }, [activeChallenge, selectedDifficulty]);
+    }, [activeChallenge, useNewDb]);
 
     const openLeaderboard = (id: string | null) => {
         setLeaderboardInitId(id);
@@ -275,17 +267,26 @@ const HomeView: React.FC<HomeViewProps> = ({ selectedDifficulty, onDifficultyCha
                                  
                                  <div className="flex-1 bg-black/20 rounded-2xl p-4 backdrop-blur-md border border-white/10 overflow-hidden flex flex-col">
                                      <div className="flex justify-between items-center mb-3 border-b border-white/10 pb-2">
-                                         <span className="text-xs font-bold opacity-80 uppercase">Top 5 Players</span>
-                                         <i className="fas fa-crown text-yellow-400 text-xs"></i>
+                                         <span className="text-xs font-bold opacity-80 uppercase">TOP 5 Players</span>
+                                         <button
+                                             onClick={() => { const v = !useNewDb; setUseNew(v); setUseNewDb(v); }}
+                                             className={`text-[10px] px-2 py-0.5 rounded font-bold ${useNewDb ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}
+                                         >
+                                             {useNewDb ? '切换旧排行榜' : '切换新排行榜'}
+                                         </button>
                                      </div>
                                      <div className="space-y-3 pr-1">
-                                         {topScores.length > 0 ? topScores.map((entry, idx) => (
+                                         {loadingScores ? (
+                                             <div className="text-center py-4 text-xs opacity-50">
+                                                 <i className="fas fa-spinner fa-spin mr-1"></i> 加载中...
+                                             </div>
+                                         ) : topScores.length > 0 ? topScores.slice(0, 5).map((entry, idx) => (
                                              <div key={idx} className="flex items-center justify-between text-xs">
                                                  <div className="flex items-center gap-3">
                                                      <span className={`font-black w-4 text-center ${idx === 0 ? 'text-yellow-300' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-600' : 'opacity-60'}`}>{idx + 1}</span>
                                                      <div className="flex flex-col">
                                                          <span className="font-bold text-white truncate max-w-[130px]">{entry.player_name}</span>
-                                                         <span className="text-[10px] opacity-60 truncate max-w-[130px]">{entry.details.rank}</span>
+                                                         <span className="text-[10px] opacity-60 truncate max-w-[130px]">{entry.details?.rank || 'N/A'}</span>
                                                      </div>
                                                  </div>
                                                  <span className="font-mono font-bold opacity-90">{Math.floor(entry.score)}</span>

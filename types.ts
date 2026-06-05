@@ -50,7 +50,7 @@ export interface StoryEntry {
   timestamp: number;
 }
 
-export type CompetitionType = 'None' | 'OI' | 'MO' | 'PhO' | 'ChO';
+export type CompetitionType = 'None' | 'OI';
 
 export interface CompetitionResultData {
     title: string;
@@ -241,7 +241,6 @@ export interface GameState {
   // Weekend System
   isWeekend: boolean;
   weekendActionPoints: number;
-  weekendProcessed: boolean; // Flag to prevent infinite weekend loop
   availableWeekendActivityIds?: string[]; // Added: For Reality Mode limitation
   
   // Mini Game System

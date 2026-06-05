@@ -48,7 +48,7 @@ export const TALENTS: Talent[] = [
     },
 
     // --- Cursed (Negative Cost = Gives Points) ---
-    { id: 'poverty', name: '家徒四壁', description: '初始负债120，且不再获得每周固定收入。', rarity: 'cursed', cost: -2,
+    { id: 'poverty', name: '家徒四壁', description: '初始金钱-140（通常导致负债），且不再获得每周固定收入。', rarity: 'cursed', cost: -2,
       effect: (s) => ({ general: { ...s.general, money: s.general.money - 140 } }),
       passive: { noWeeklyMoney: true }
     },
@@ -78,16 +78,16 @@ export const SHOP_ITEMS: Item[] = [
       effect: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 3, efficiency: s.general.efficiency + 1, money: s.general.money - 20 } }) },
     { id: 'five_three', name: '五年高考三年模拟', description: '请输入文本。全科水平+4，心态-8。', price: 45, icon: 'fa-book',
       effect: (s) => ({ 
-          subjects: modifySub(s, ['chinese', 'math', 'english', 'physics', 'chemistry', 'biology'], 4), 
+          subjects: modifySub(s, ['chinese', 'math', 'english', 'physics', 'chemistry', 'biology', 'history', 'geography', 'politics'], 4),
           general: { ...s.general, mindset: s.general.mindset - 8, money: s.general.money - 45 } 
       }) },
     { id: 'game_skin', name: '不要问为啥没有648，问就是放这里你买不了', description: '虽然不能变强，但心情变好了。心态+8。', price: 68, icon: 'fa-gamepad',
       effect: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 8, money: s.general.money - 68 } }) },
     { id: 'flowers', name: '鲜花', description: '送给心仪的人。魅力+8，若有对象则大幅提升关系。', price: 50, icon: 'fa-fan',
-      effect: (s) => ({ general: { ...s.general, romance: s.general.romance + 8, money: s.general.money - 50, mindset: s.general.mindset + (s.romancePartner ? 5 : 0) } }) },
+      effect: (s) => ({ general: { ...s.general, romance: s.general.romance + 8 + (s.romancePartner ? 5 : 0), money: s.general.money - 50 } }) },
     { id: 'algo_book', name: '算法导论', description: '厚得可以当枕头。OI能力全面+2。', price: 80, icon: 'fa-code',
       effect: (s) => ({ oiStats: modifyOI(s, { dp: 2, ds: 2, math: 2, graph: 2, string: 2, misc: 2 }), general: { ...s.general, money: s.general.money - 80 } }) },
-    { id: 'luogu_book', name: '深入浅出程序设计竞赛', description: 'kkk亲签？', price: 56, icon: 'fa-code',
+    { id: 'luogu_book', name: '深入浅出程序设计竞赛', description: '洛谷教材。OI全维度+1~2，DS和数学+2。', price: 56, icon: 'fa-code',
       effect: (s) => ({ oiStats: modifyOI(s, { dp: 1, ds: 2, math: 2, graph: 1, string: 1, misc: 1 }), general: { ...s.general, money: s.general.money - 56 } }) },
     { id: 'gym_card', name: '健身卡', description: '强身健体。健康+15。', price: 100, icon: 'fa-dumbbell',
       effect: (s) => ({ general: { ...s.general, health: s.general.health + 15, money: s.general.money - 100 } }) }
@@ -115,8 +115,6 @@ export const STATUSES: Record<string, Omit<GameStatus, 'duration'>> = {
     'crush': { id: 'crush', name: '暗恋', description: '那个人的身影总是在脑海挥之不去。', type: 'NEUTRAL', icon: 'fa-heart', effectDescription: '效率 -2，魅力 +2' },
     'in_love': { id: 'in_love', name: '恋爱', description: '甜，太甜了。', type: 'BUFF', icon: 'fa-heartbeat', effectDescription: '每周心态 +5' },
     'heartbroken': { id: 'heartbroken', name: '失恋', description: '心如刀绞，这就是青春的代价吗？', type: 'DEBUFF', icon: 'fa-heart-broken', effectDescription: '每周心态 -3, 效率 -1' },
-    'exhausted': { id: 'exhausted', name: '透支', description: '你需要休息。', type: 'DEBUFF', icon: 'fa-bed', effectDescription: '健康无法自然恢复' },
-    'crush_pending': { id: 'crush_pending', name: '恋人未满', description: '虽然还没捅破窗户纸，但这种暧昧的感觉真好。', type: 'BUFF', icon: 'fa-comments', effectDescription: '每周运气 +2，经验 +2' },
     'sleep_compulsion': { id: 'sleep_compulsion', name: '让我睡觉！', description: '每周不睡觉就会死。', type: 'DEBUFF', icon: 'fa-dizzy', effectDescription: '每周必须进行一次睡觉事件' },
     // --- Graded Debt Statuses ---
     'debt_1': { id: 'debt_1', name: '负债 I', description: '这点钱下个月就能还上……吧？', type: 'DEBUFF', icon: 'fa-file-invoice', effectDescription: '心态-5, 魅力-3 /周' },
@@ -145,7 +143,7 @@ export const CLUBS: Club[] = [
         action: (s) => ({ general: { ...s.general, romance: s.general.romance + 3, mindset: s.general.mindset + 2, experience: s.general.experience + 1 } })
     },
     {
-        id: 'poetry', name: '一方诗社', icon: 'fa-pen-nib', description: '诗意栖居，文采飞扬。', effectDescription: '语文++, 心态+, 历史+',
+        id: 'poetry', name: '一方诗社', icon: 'fa-pen-nib', description: '诗意栖居，文采飞扬。', effectDescription: '语文++, 心态+, 历史++',
         action: (s) => ({ subjects: modifySub(s, ['chinese', 'history'], 2), general: { ...s.general, mindset: s.general.mindset + 2 } })
     },
     {
@@ -153,7 +151,7 @@ export const CLUBS: Club[] = [
         action: (s) => ({ subjects: modifySub(s, ['politics', 'history'], 2), general: { ...s.general, experience: s.general.experience + 2 } })
     },
     {
-        id: 'mun', name: '模拟联合国', icon: 'fa-handshake', description: '西装革履，纵横捭阖。', effectDescription: '英语++, 政治+, 魅力+',
+        id: 'mun', name: '模拟联合国', icon: 'fa-handshake', description: '西装革履，纵横捭阖。', effectDescription: '英语++, 政治++, 魅力+',
         action: (s) => ({ subjects: modifySub(s, ['english', 'politics'], 2), general: { ...s.general, romance: s.general.romance + 2 } })
     },
     {
@@ -161,11 +159,11 @@ export const CLUBS: Club[] = [
         action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 4, luck: s.general.luck + 1 } })
     },
     {
-        id: 'astronomy', name: '南斗天文社', icon: 'fa-star', description: 'whd:欢迎加入【数据删除】！', effectDescription: '物理++, 地理+, 心态+',
+        id: 'astronomy', name: '南斗天文社', icon: 'fa-star', description: 'whd:欢迎加入【数据删除】！', effectDescription: '物理++, 地理++, 心态+',
         action: (s) => ({ subjects: modifySub(s, ['physics', 'geography'], 2), general: { ...s.general, mindset: s.general.mindset + 2 } })
     },
     {
-        id: 'math_research', name: '大数研究社', icon: 'fa-calculator', description: 'G(64)?', effectDescription: '数学+++, 逻辑+',
+        id: 'math_research', name: '大数研究社', icon: 'fa-calculator', description: 'G(64)?', effectDescription: '数学+++',
         action: (s) => ({ subjects: modifySub(s, ['math'], 4) })
     },
     {
@@ -173,11 +171,11 @@ export const CLUBS: Club[] = [
         action: (s) => ({ general: { ...s.general, luck: s.general.luck + 3, mindset: s.general.mindset + 3, experience: s.general.experience + 1 } })
     },
     {
-        id: 'literature', name: '文学社', icon: 'fa-feather-alt', description: '以文会友，激扬文字。', effectDescription: '语文++, 历史+, 心态+',
+        id: 'literature', name: '文学社', icon: 'fa-feather-alt', description: '以文会友，激扬文字。', effectDescription: '语文++, 历史++, 心态+',
         action: (s) => ({ subjects: modifySub(s, ['chinese', 'history'], 2), general: { ...s.general, mindset: s.general.mindset + 2 } })
     },
     {
-        id: 'otaku', name: '御宅社', icon: 'fa-gamepad', description: '二次元的避风港。', effectDescription: '心态+++, 宅属性+',
+        id: 'otaku', name: '御宅社', icon: 'fa-gamepad', description: '二次元的避风港。', effectDescription: '心态+++, 健康-1',
         action: (s) => ({ general: { ...s.general, mindset: s.general.mindset + 5, health: s.general.health - 1 } })
     },
     {
@@ -217,10 +215,22 @@ export const WEEKEND_ACTIVITIES: WeekendActivity[] = [
         },
         action: (s) => {
             const avg = (s.subjects.math.level + s.subjects.chinese.level + s.subjects.english.level) / 3;
+            if (avg > 80) {
+                return {
+                    general: { ...s.general, mindset: s.general.mindset + 8, experience: s.general.experience + 5 },
+                    subjects: modifySub(s, ['math', 'chinese', 'english'], 2)
+                };
+            }
             if (avg > 50) {
                 return {
                     general: { ...s.general, mindset: s.general.mindset + 5, experience: s.general.experience + 3 },
                     subjects: modifySub(s, ['math', 'chinese', 'english'], 1)
+                };
+            }
+            if (avg > 25) {
+                return {
+                    general: { ...s.general, mindset: s.general.mindset + 1, efficiency: s.general.efficiency + 1 },
+                    subjects: modifySub(s, ['math', 'chinese', 'english'], 0.5)
                 };
             }
             return {
@@ -289,16 +299,16 @@ export const WEEKEND_ACTIVITIES: WeekendActivity[] = [
     {
         id: 'w_luogu', name: '刷洛谷', icon: 'fa-code', type: 'OI',
         condition: (s) => s.competition === 'OI',
-        description: '基础OI能力各+0.2，经验+1。',
+        description: '全OI维度+0.2，经验+1。',
         resultText: '刷了几道题，感觉还可以。',
-        action: (s) => ({ oiStats: modifyOI(s, { dp: 0.2, ds: 0.2, misc: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
+        action: (s) => ({ oiStats: modifyOI(s, { dp: 0.2, ds: 0.2, string: 0.2, graph: 0.2, math: 0.2, misc: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
     },
     {
         id: 'w_oi_wiki', name: '看 OI-Wiki', icon: 'fa-book-atlas', type: 'OI',
         condition: (s) => s.competition === 'OI',
         description: '全OI维度+0.2，经验+1。全面夯实基础。',
         resultText: '你学习了几个新的算法模板，但还需要练习。',
-        action: (s) => ({ oiStats: modifyOI(s, { string: 0.2, graph: 0.2, math: 0.2, dp: 0.2, ds: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
+        action: (s) => ({ oiStats: modifyOI(s, { string: 0.2, graph: 0.2, math: 0.2, dp: 0.2, ds: 0.2, misc: 0.2 }), general: { ...s.general, experience: s.general.experience + 1 } })
     },
     {
         id: 'w_mock_oi', name: '参加模拟赛', icon: 'fa-trophy', type: 'OI',
@@ -311,9 +321,30 @@ export const WEEKEND_ACTIVITIES: WeekendActivity[] = [
             if (total > 30) return '还行，做出来几道。但旁边大神已经在写第四题了...';
             return '题目好难...不过继续努力吧！';
         },
-        action: (s) => ({
-            oiStats: modifyOI(s, { dp: 0.5, ds: 0.5, math: 0.5, misc: 0.5 }),
-            general: { ...s.general, experience: s.general.experience + 2 }
-        })
+        action: (s) => {
+            const total = s.oiStats.dp + s.oiStats.ds + s.oiStats.math + s.oiStats.string + s.oiStats.graph + s.oiStats.misc;
+            if (total > 100) {
+                return {
+                    oiStats: modifyOI(s, { dp: 1, ds: 1, math: 1, string: 1, graph: 1, misc: 1 }),
+                    general: { ...s.general, experience: s.general.experience + 5, mindset: s.general.mindset + 5 }
+                };
+            }
+            if (total > 60) {
+                return {
+                    oiStats: modifyOI(s, { dp: 0.5, ds: 0.5, math: 0.5, string: 0.5, graph: 0.5, misc: 0.5 }),
+                    general: { ...s.general, experience: s.general.experience + 2 }
+                };
+            }
+            if (total > 30) {
+                return {
+                    oiStats: modifyOI(s, { dp: 0.3, ds: 0.3, math: 0.3, string: 0.3, graph: 0.3, misc: 0.3 }),
+                    general: { ...s.general, experience: s.general.experience + 1 }
+                };
+            }
+            return {
+                oiStats: modifyOI(s, { misc: 0.5 }),
+                general: { ...s.general, experience: s.general.experience + 1, mindset: s.general.mindset - 2 }
+            };
+        }
     }
 ];

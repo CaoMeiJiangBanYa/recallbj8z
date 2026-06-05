@@ -49,7 +49,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, state, eventResult, onCh
                         </div>
                       )}
                       <button onClick={onConfirm} className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black text-lg hover:bg-indigo-700 shadow-xl active:scale-95 transition-transform">
-                           {(state.chainedEvent || eventResult.choice.nextEventId) ? '继续...' : '确认结果'}
+                           {state.chainedEvent ? '继续...' : '确认结果'}
                       </button>
                     </div>
                   )}

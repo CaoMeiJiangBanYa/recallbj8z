@@ -84,7 +84,7 @@ export const applyMoneyPassive = (state: GameState, delta: number): number => {
 
 export const applyRomancePassive = (state: GameState, delta: number): number => {
     const passives = getActiveTalentPassives(state);
-    if (passives.romanceGainMultiplier !== undefined) {
+    if (delta > 0 && passives.romanceGainMultiplier !== undefined) {
         return delta * passives.romanceGainMultiplier;
     }
     return delta;
@@ -165,24 +165,22 @@ export const applyAiEffect = (s: GameState, effect: SerializableEffect): Partial
     if (effect.mindset) updates.general!.mindset = Math.max(0, s.general.mindset + effect.mindset);
     if (effect.health) updates.general!.health = Math.max(0, s.general.health + effect.health);
     if (effect.money) {
-        const rawDelta = effect.money;
-        const adjusted = applyMoneyPassive(s, rawDelta);
-        updates.general!.money = s.general.money + adjusted;
+        updates.general!.money = s.general.money + effect.money;
     }
     if (effect.efficiency) {
-        const adjusted = applyEfficiencyPassive(s, effect.efficiency);
-        updates.general!.efficiency = Math.max(1, s.general.efficiency + adjusted);
+        updates.general!.efficiency = Math.max(1, s.general.efficiency + effect.efficiency);
     }
     if (effect.romance) updates.general!.romance = Math.max(0, s.general.romance + effect.romance);
     if (effect.experience) updates.general!.experience = Math.max(0, s.general.experience + effect.experience);
     if (effect.luck) updates.general!.luck = Math.max(0, s.general.luck + effect.luck);
 
     if (effect.subjects) {
-        Object.entries(effect.subjects).forEach(([key, val]) => {
+        (Object.entries(effect.subjects) as [string, number][]).forEach(([key, val]) => {
+            if (!(key in updates.subjects!)) return; // skip invalid subject keys from AI
             const subKey = key as SubjectKey;
-            updates.subjects![subKey] = { 
-                ...updates.subjects![subKey], 
-                level: Math.max(0, updates.subjects![subKey].level + (val as number)) 
+            updates.subjects![subKey] = {
+                ...updates.subjects![subKey],
+                level: Math.max(0, updates.subjects![subKey].level + val)
             };
         });
     }
@@ -194,6 +192,8 @@ export const applyAiEffect = (s: GameState, effect: SerializableEffect): Partial
         });
     }
 
+    applyStatCaps(s, updates);
+
     return updates;
 };
 
@@ -204,7 +204,7 @@ export const mapAiEventToGameEvent = (aiEvent: any): GameEvent => {
         description: aiEvent.description,
         type: aiEvent.type || 'neutral',
         triggerType: 'RANDOM',
-        choices: aiEvent.choices.map((c: any) => ({
+        choices: Array.isArray(aiEvent.choices) ? aiEvent.choices.map((c: any) => ({
             text: c.text,
             resultDescription: c.resultDescription,
             action: (s: GameState) => {
@@ -218,6 +218,6 @@ export const mapAiEventToGameEvent = (aiEvent: any): GameEvent => {
                     }]
                 };
             }
-        }))
+        })) : []
     };
 };

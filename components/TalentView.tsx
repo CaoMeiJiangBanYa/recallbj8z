@@ -31,7 +31,7 @@ const TalentView: React.FC<TalentViewProps> = ({ availableTalents, selectedTalen
                             className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-start gap-2 h-44 relative overflow-hidden group text-left ${isSelected ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg transform scale-105 z-10' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-slate-50'}`}
                         >
                             <div className="flex justify-between w-full items-start">
-                                <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${talent.rarity === 'cursed' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${talent.rarity === 'cursed' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700'}`}>
                                     {talent.rarity}
                                 </span>
                                 <span className={`text-xs font-black px-2 py-1 rounded-full ${talent.cost > 0 ? 'bg-slate-100 text-red-500' : 'bg-emerald-100 text-emerald-600'}`}>

@@ -1,9 +1,10 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Difficulty, GeneralStats, Talent, Phase, GameState, Challenge } from './types';
 import { DIFFICULTY_PRESETS } from './data/constants';
 import { CLUBS, SHOP_ITEMS, ACHIEVEMENTS, TALENTS } from './data/mechanics';
-import { useGameLogic } from './hooks/useGameLogic';
+import { getShopPriceMultiplier } from './data/utils';
+import { useGameLogic, ACHIEVEMENTS_KEY, PHASE_NAMES } from './hooks/useGameLogic';
 
 // Component Imports
 import StatsPanel from './components/StatsPanel';
@@ -40,7 +41,13 @@ const App: React.FC = () => {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   // ... existing Floating Text Logic ...
+  const floatingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
+
+  useEffect(() => {
+    return () => floatingTimersRef.current.forEach(clearTimeout);
+  }, []);
+
   const spawnFloatingText = (text: string, x: number, y: number, type: string) => {
       let color = '#374151';
       if (type === 'mindset') color = '#3b82f6'; // Blue
@@ -54,7 +61,8 @@ const App: React.FC = () => {
       
       const newText: FloatingTextItem = { id: Date.now() + Math.random(), text, x, y, color };
       setFloatingTexts(prev => [...prev, newText]);
-      setTimeout(() => setFloatingTexts(prev => prev.filter(t => t.id !== newText.id)), 1500);
+      const timer = setTimeout(() => setFloatingTexts(prev => prev.filter(t => t.id !== newText.id)), 1500);
+      floatingTimersRef.current.push(timer);
   };
 
   const calculateAndVisualizeDiff = (oldState: GameState, newState: GameState, x?: number, y?: number) => {
@@ -67,7 +75,8 @@ const App: React.FC = () => {
                if (val === 0) return;
                const text = `${label} ${val > 0 ? '+' : ''}${val}`;
                diffs.push(text);
-               setTimeout(() => spawnFloatingText(text, (x || window.innerWidth/2) + (Math.random() * 40 - 20), (y || window.innerHeight/2) + (Math.random() * 40 - 20), colorType), diffs.length * 100);
+               const timer = setTimeout(() => spawnFloatingText(text, (x || window.innerWidth/2) + (Math.random() * 40 - 20), (y || window.innerHeight/2) + (Math.random() * 40 - 20), colorType), diffs.length * 100);
+               floatingTimersRef.current.push(timer);
            }
        };
        check('mindset', '心态', 'mindset');
@@ -89,12 +98,12 @@ const App: React.FC = () => {
   } = useGameLogic();
 
   // Scroll Log Effect
-  React.useEffect(() => {
+  useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [state.log]);
 
   // Check for Club Selection Trigger from Logic
-  React.useEffect(() => {
+  useEffect(() => {
       // FIX: Use hasSelectedClub flag instead of !state.club to prevent loop or missed check
       if (state.phase === Phase.SEMESTER_1 && state.week === 2 && !state.hasSelectedClub && !showClubSelection) {
           setShowClubSelection(true);
@@ -163,7 +172,9 @@ const App: React.FC = () => {
        return 0;
      };
      score += rankBonus(state.midtermRank);
-     score += rankBonus(state.examResult?.rank);
+     if (state.examResult?.type !== 'COMPETITION') {
+       score += rankBonus(state.examResult?.rank);
+     }
 
      // OI stats bonus
      const oiTotal = state.oiStats.dp + state.oiStats.ds + state.oiStats.math + state.oiStats.string + state.oiStats.graph + state.oiStats.misc;
@@ -185,7 +196,7 @@ const App: React.FC = () => {
             onStart={prepareGame} hasSave={difficultyHasSave} onLoadGame={handleLoadGame}
             unlockedAchievements={state.unlockedAchievements}
             onResetAchievements={() => {
-              localStorage.removeItem('recall_achievements_global');
+              localStorage.removeItem(ACHIEVEMENTS_KEY);
               setState(p => ({ ...p, unlockedAchievements: [] }));
             }}
           />
@@ -232,7 +243,7 @@ const App: React.FC = () => {
                  <i className="fas fa-trophy text-yellow-500 mb-1"></i><span className="text-xs">成就</span>
                  <span className="absolute top-2 right-2 bg-slate-100 text-[9px] px-1.5 rounded-full">{state.unlockedAchievements.length}</span>
             </button>
-            <button onClick={() => setState(p => ({...p, phase: Phase.WITHDRAWAL}))} className="col-span-2 bg-rose-100 hover:bg-rose-200 p-2 rounded-xl text-xs font-bold text-rose-600 transition-colors active:scale-95">提前退休</button>
+            <button onClick={() => setState(p => ({...p, phase: Phase.WITHDRAWAL, isPlaying: false}))} className="col-span-2 bg-rose-100 hover:bg-rose-200 p-2 rounded-xl text-xs font-bold text-rose-600 transition-colors active:scale-95">提前退休</button>
           </div>
       </aside>
 
@@ -250,7 +261,7 @@ const App: React.FC = () => {
                <div className="flex items-center justify-between">
                    <div className="flex flex-col gap-1 w-full mr-4">
                        <h2 className="font-black text-slate-800 text-lg flex items-center gap-2 uppercase tracking-tight truncate">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${state.isSick ? 'bg-red-500 animate-pulse' : 'bg-indigo-500'}`}></span> {state.phase} 
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${state.isSick ? 'bg-red-500 animate-pulse' : 'bg-indigo-500'}`}></span> {PHASE_NAMES[state.phase] || state.phase}
                         </h2>
                         <div className="flex gap-2 items-center flex-wrap">
                             {state.activeStatuses.map(s => (
@@ -406,7 +417,7 @@ const App: React.FC = () => {
                        phase: nextPhase, 
                        isPlaying: prev.phase === Phase.SUBJECT_RESELECTION,
                        // Fix: Set explicit duration for Semester 1 if skipping placement exam (e.g. reselection), otherwise default (0 for placement exam)
-                       totalWeeksInPhase: nextPhase === Phase.SEMESTER_1 ? 10 : 0
+                       totalWeeksInPhase: nextPhase === Phase.SEMESTER_1 ? prev.totalWeeksInPhase : 0
                    };
                })} className="bg-indigo-600 disabled:bg-slate-200 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-xl">确认选择</button>
             </div>
@@ -456,12 +467,16 @@ const App: React.FC = () => {
                      {/* Scrollable Content */}
                      <div className="flex-1 overflow-y-auto custom-scroll p-6 md:p-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-safe">
-                             {SHOP_ITEMS.map(item => (
-                                 <button key={item.id} onClick={() => handleShopPurchase(item, () => spawnFloatingText(`-${item.price}`, window.innerWidth/2, window.innerHeight/2, 'money'))} disabled={state.general.money < item.price} className="p-4 rounded-xl border border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left flex items-center gap-4 group disabled:opacity-50 active:scale-95">
+                             {SHOP_ITEMS.map(item => {
+                                 const multiplier = getShopPriceMultiplier(state);
+                                 const actualPrice = Math.floor(item.price * multiplier);
+                                 return (
+                                 <button key={item.id} onClick={() => handleShopPurchase(item, () => spawnFloatingText(`-${actualPrice}`, window.innerWidth/2, window.innerHeight/2, 'money'))} disabled={state.general.money < actualPrice} className="p-4 rounded-xl border border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left flex items-center gap-4 group disabled:opacity-50 active:scale-95">
                                      <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-white group-hover:text-indigo-600"><i className={`fas ${item.icon} text-xl`}></i></div>
-                                     <div className="flex-1"><div className="flex justify-between items-center"><span className="font-bold text-slate-800">{item.name}</span><span className="text-sm font-bold text-yellow-600">{item.price} G</span></div><p className="text-xs text-slate-400 mt-1">{item.description}</p></div>
+                                     <div className="flex-1"><div className="flex justify-between items-center"><span className="font-bold text-slate-800">{item.name}</span><span className="text-sm font-bold text-yellow-600">{actualPrice} G</span></div><p className="text-xs text-slate-400 mt-1">{item.description}</p></div>
                                  </button>
-                             ))}
+                                 );
+                             })}
                         </div>
                      </div>
                  </div>

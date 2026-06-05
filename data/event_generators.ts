@@ -2,11 +2,10 @@
 import { GameState, GameEvent, SubjectKey, SUBJECT_NAMES, OIStats } from '../types';
 import { modifySub, modifyOI, getEffectiveEfficiency, getRomanceEventMultiplier } from './utils';
 import { STATUSES } from './mechanics';
-import { CHAINED_EVENTS } from './event_defs';
 
 export const generateStudyEvent = (state: GameState): GameEvent => {
     const pool: SubjectKey[] = state.selectedSubjects.length > 0
-        ? ['chinese', 'math', 'english', ...state.selectedSubjects]
+        ? [...new Set(['chinese', 'math', 'english', ...state.selectedSubjects])]
         : (Object.keys(SUBJECT_NAMES) as SubjectKey[]);
 
     const subject = pool[Math.floor(Math.random() * pool.length)];
@@ -17,7 +16,7 @@ export const generateStudyEvent = (state: GameState): GameEvent => {
     const levelDiminishing = Math.max(0.5, 1 - currentLevel * 0.005); // 20级→0.9x, 50级→0.75x, 80级→0.6x
 
     return {
-        id: `study_weekly_${Date.now()}`,
+        id: `study_weekly_${subject}`,
         title: `${subName}课的抉择`,
         description: `这节是${subName}课。${currentLevel > 60 ? '你已经学得很深了，进步空间越来越小...' : currentLevel > 30 ? '你感觉还有提升空间。' : '打好基础很重要。'}`,
         type: 'neutral',
@@ -49,6 +48,7 @@ export const generateStudyEvent = (state: GameState): GameEvent => {
                     if (Math.random() < caughtChance) {
                         return {
                             general: { ...s.general, mindset: s.general.mindset - 5, romance: s.general.romance - 2 },
+                            sleepCount: (s.sleepCount || 0) + 1,
                             log: [...s.log, { message: "补觉被老师发现了！当众被点名...", type: 'warning', timestamp: Date.now() }]
                         };
                     }
@@ -264,7 +264,7 @@ export const generateRandomFlavorEvent = (state: GameState): GameEvent => {
             type: 'neutral',
             choices: [
                 {
-                    text: '接单 (+20金钱)',
+                    text: '接单 (+20金钱，可能被抓)',
                     action: (st) => {
                          // Luck affects risk
                          const caught = Math.random() < (0.4 - st.general.luck / 300);
@@ -299,12 +299,12 @@ export const generateRandomFlavorEvent = (state: GameState): GameEvent => {
     ];
 
     const picker = events[Math.floor(Math.random() * events.length)];
-    return { ...picker(state), id: `flavor_${Date.now()}` };
+    return picker(state);
 };
 
 export const generateSummerLifeEvent = (state: GameState): GameEvent => {
     const leisureEvent: GameEvent = {
-        id: `sum_leisure_${Date.now()}`,
+        id: `sum_leisure`,
         title: '暑期休闲时光',
         description: '（并非）漫长的暑假，除了学习，适当的放松也是必要的。今天你打算做什么？',
         type: 'positive',
@@ -338,7 +338,8 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
             {
                 text: '为什么玩 Minecraft ，不如Minesweeper！！！！',
                 action: (s) => ({
-                    general: { ...s.general, mindset: s.general.mindset + 5},
+                    general: { ...s.general, mindset: s.general.mindset + 3, efficiency: s.general.efficiency + 1 },
+                    log: [...s.log, { message: "扫雷让你心平气和，专注力反而提升了。", type: 'success', timestamp: Date.now() }]
                 })
             },
             {
@@ -434,7 +435,7 @@ export const generateSummerLifeEvent = (state: GameState): GameEvent => {
 export const generateOIEvent = (state: GameState): GameEvent => {
     if (Math.random() < 0.3) {
         return {
-            id: `evt_codeforces_${Date.now()}`,
+            id: `evt_codeforces`,
             title: 'Codeforces Round',
             description: '今晚有一场 Codeforces Div.1+2，你要打吗？',
             type: 'neutral',
@@ -455,7 +456,8 @@ export const generateOIEvent = (state: GameState): GameEvent => {
                 {
                     text: '算了吧，睡觉',
                     action: (s) => ({
-                        general: { ...s.general, health: s.general.health + 2 }
+                        general: { ...s.general, health: s.general.health + 2 },
+                        sleepCount: (s.sleepCount || 0) + 1
                     })
                 }
             ]
@@ -468,7 +470,7 @@ export const generateOIEvent = (state: GameState): GameEvent => {
     while (type2 === type1) type2 = algoTypes[Math.floor(Math.random() * algoTypes.length)];
 
     return {
-        id: `evt_luogu_${Date.now()}`,
+        id: `evt_luogu`,
         title: '你再一次点开了洛谷',
         description: '看着熟悉的界面，你决定...',
         type: 'neutral',
@@ -500,7 +502,7 @@ export const generateOIEvent = (state: GameState): GameEvent => {
                 text: '随机跳题',
                 action: (s) => {
                     // Luck affects quality of problem found
-                    const r = Math.random() + (s.general.luck - 50) / 500;
+                    const r = Math.random() - (s.general.luck - 50) / 500;
                     let msg = "";
                     let bonus: Partial<OIStats> = {};
                     if (r < 0.2) { msg = "跳到了一道水题，秒了。"; bonus = { misc: 1 }; }

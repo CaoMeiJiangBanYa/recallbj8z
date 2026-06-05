@@ -1,19 +1,32 @@
 
-import { createClient } from '@supabase/supabase-js'
-// 我的
-// const supabaseUrl = 'https://xbtvtpfkrroxcatslfbh.supabase.co';
-// const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhidHZ0cGZrcnJveGNhdHNsZmJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MzgxMzgsImV4cCI6MjA4NTIxNDEzOH0.0rquSa4goz7s6bRJnG9VBHjat2YQB62Gqs40iUDimHs';
-// 原来的
-// 修正：这是 API URL，格式通常为 https://<project_id>.supabase.co
-const supabaseUrl = 'https://qmgfcirrgwzcmmyjnecn.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZ2ZjaXJyZ3d6Y21teWpuZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMzY2NzQsImV4cCI6MjA4MzYxMjY3NH0.CU4roI0pWPHARNydPu_EeUBoz7G2dtxhw9InUFSBZ80';
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
+// 旧排行榜
+const OLD_URL = 'https://qmgfcirrgwzcmmyjnecn.supabase.co';
+const OLD_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZ2ZjaXJyZ3d6Y21teWpuZWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMzY2NzQsImV4cCI6MjA4MzYxMjY3NH0.CU4roI0pWPHARNydPu_EeUBoz7G2dtxhw9InUFSBZ80';
 
+// 新排行榜
+const NEW_URL = 'https://mcjyuveyfgefdtyavygj.supabase.co';
+const NEW_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1janl1dmV5ZmdlZmR0eWF2eWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjQyMjAsImV4cCI6MjA5NTI0MDIyMH0.-ZCKodHMGKUHLNURxm0ACp7wGhTPb4cPHTBHx07Wihc';
 
+const STORAGE_KEY = 'bj8z_use_new_leaderboard';
 
+const oldClient = createClient(OLD_URL, OLD_KEY);
+const newClient = createClient(NEW_URL, NEW_KEY);
 
+const getClient = (useNew: boolean): SupabaseClient => useNew ? newClient : oldClient;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const getUseNewDb = (): boolean => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+};
+
+export const setUseNewDb = (useNew: boolean) => {
+  localStorage.setItem(STORAGE_KEY, String(useNew));
+};
 
 export interface LeaderboardEntry {
     id: string;
@@ -28,12 +41,13 @@ export interface LeaderboardEntry {
     };
 }
 
-export const uploadScore = async (entry: Omit<LeaderboardEntry, 'id' | 'created_at'>) => {
-    return await supabase.from('leaderboard').insert([entry]);
+export const uploadScore = async (entry: Omit<LeaderboardEntry, 'id' | 'created_at'>, useNew: boolean) => {
+    return await getClient(useNew).from('leaderboard').insert([entry]);
 };
 
-export const getLeaderboard = async (challengeId: string | null = null, limit = 50, offset = 0) => {
-    let query = supabase
+export const getLeaderboard = async (challengeId: string | null = null, limit = 50, offset = 0, useNew = false) => {
+    const client = getClient(useNew);
+    let query = client
         .from('leaderboard')
         .select('*')
         .order('score', { ascending: false })
@@ -42,62 +56,16 @@ export const getLeaderboard = async (challengeId: string | null = null, limit = 
 
     if (challengeId) {
         query = query.eq('challenge_id', challengeId);
-    } else {
-        // 如果没有指定 challengeId，我们假设是获取主线排行榜
-        // 也可以选择 query.is('challenge_id', null) 只看普通模式
-        // 这里为了热闹一点，暂时不强制过滤 null，或者你可以根据需求修改
     }
 
     return await query;
 };
 
+export const ALLOWED_RANKS = ['SSS', 'A', 'C', 'F', 'S', 'B'];
+export const ALLOWED_TITLES = ['高中毕业生', '遗憾离场'];
+export const MAX_LEADERBOARD_SCORE = 10000;
 
-
-
-
-
-// export const supabase = createClient(supabaseUrl, supabaseKey);
-
-// export interface LeaderboardEntry {
-//     id: string;
-//     player_name: string;
-//     score: number;
-//     challenge_id: string | null;
-//     difficulty: string;
-//     created_at: string;
-//     details: {
-//         title: string;
-//         rank: string;
-//     };
-// }
-
-// export const uploadScore = async (entry: Omit<LeaderboardEntry, 'id' | 'created_at'>) => {
-//     return await supabase.from('leaderboard').insert([entry]);
-// };
-
-// export const getLeaderboard = async (challengeId: string | null = null, limit = 50) => {
-//     try {
-//         let query = supabase
-//             .from('leaderboard')
-//             .select('*', { count: 'exact' })
-//             .order('score', { ascending: false })
-//             .limit(limit);
-
-//         if (challengeId && challengeId.trim()) {
-//             query = query.eq('challenge_id', challengeId);
-//         }
-
-//         const { data, error, count } = await query;
-        
-//         if (error) {
-//             console.error('Supabase Error:', error);
-//             return { data: [], error };
-//         }
-        
-//         console.log(`✓ 获取${count || 0}条榜单记录`);
-//         return { data: data || [], error: null };
-//     } catch (e) {
-//         console.error('Leaderboard fetch exception:', e);
-//         return { data: [], error: e };
-//     }
-// };
+export const filterLeaderboardEntry = (e: any): boolean =>
+    ALLOWED_RANKS.includes(e.details?.rank) &&
+    ALLOWED_TITLES.includes(e.details?.title) &&
+    e.score <= MAX_LEADERBOARD_SCORE;

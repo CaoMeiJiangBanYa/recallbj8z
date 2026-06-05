@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { getLeaderboard, LeaderboardEntry } from '../lib/supabase';
+import { getLeaderboard, LeaderboardEntry, getUseNewDb, setUseNewDb, filterLeaderboardEntry } from '../lib/supabase';
 import { WEEKLY_CHALLENGES } from '../data/challenges';
 
 interface LeaderboardModalProps {
@@ -11,15 +11,8 @@ interface LeaderboardModalProps {
 const PAGE_SIZE = 100;
 const SUPABASE_BATCH = 100;
 
-const allowedRanks = ['SSS', 'A', 'C', 'F', 'S', 'B'];
-const allowedTitles = ['高中毕业生', '遗憾离场'];
-
 function filterBatch(data: any[]): LeaderboardEntry[] {
-    return data.filter(e =>
-        allowedRanks.includes(e.details?.rank) &&
-        allowedTitles.includes(e.details?.title) &&
-        e.score <= 10000
-    );
+    return data.filter(filterLeaderboardEntry);
 }
 
 const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialChallengeId }) => {
@@ -28,6 +21,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string | null>(initialChallengeId || null);
+    const [useNewDb, setUseNew] = useState(() => getUseNewDb());
     const [hasMore, setHasMore] = useState(true);
 
     const offsetRef = useRef(0);
@@ -39,7 +33,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
         let exhausted = false;
 
         while (result.length < targetCount) {
-            const { data, error: fetchError } = await getLeaderboard(currentFilter, SUPABASE_BATCH, offset);
+            const { data, error: fetchError } = await getLeaderboard(currentFilter, SUPABASE_BATCH, offset, useNewDb);
             if (fetchError) throw fetchError;
             if (!data || data.length === 0) { exhausted = true; break; }
             result.push(...filterBatch(data));
@@ -48,7 +42,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
         }
 
         return { entries: result, newOffset: offset, exhausted };
-    }, []);
+    }, [useNewDb]);
 
     // initial load
     useEffect(() => {
@@ -76,10 +70,10 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
         };
         init();
         return () => { cancelled = true; };
-    }, [filter, doFetch]);
+    }, [filter, useNewDb, doFetch]);
 
     const loadMore = useCallback(async () => {
-        if (loadingMoreRef.current) return;
+        if (loadingMoreRef.current || !hasMore) return;
         loadingMoreRef.current = true;
         setLoadingMore(true);
 
@@ -96,14 +90,14 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
             loadingMoreRef.current = false;
             setLoadingMore(false);
         }
-    }, [filter, doFetch]);
+    }, [filter, useNewDb, doFetch]);
 
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         const el = e.currentTarget;
-        if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 80 && hasMore) {
             loadMore();
         }
-    }, [loadMore]);
+    }, [loadMore, hasMore]);
 
     return (
         <div className="fixed inset-0 z-[80] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
@@ -116,6 +110,15 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
                     </h2>
                     <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
                         <i className="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div className="flex justify-end mb-4">
+                    <button
+                        onClick={() => { const v = !useNewDb; setUseNew(v); setUseNewDb(v); }}
+                        className={`text-xs px-3 py-1 rounded-lg font-bold transition-colors ${useNewDb ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
+                    >
+                        {useNewDb ? '切换新排行榜' : '切换旧排行榜'}
                     </button>
                 </div>
 
@@ -138,15 +141,15 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
                 </div>
 
                 <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
-                    <div className="grid grid-cols-12 gap-4 p-4 border-b border-slate-200 bg-slate-100/50 text-xs font-bold text-slate-500 uppercase">
-                        <div className="col-span-1 text-center" style={{ marginLeft: '6px' }}>#</div>
-                        <div className="col-span-2 text-center" style={{ marginLeft: '68px' }}>玩家</div>
-                        <div className="col-span-3 text-center" style={{ marginLeft: '64px' }}>分数</div>
-                        <div className="col-span-1 text-center" style={{ marginRight: '5px' }}>评级</div>
-                        <div className="col-span-3 text-center" style={{ marginRight: '10px' }}>评价</div>
-                        <div className="col-span-1 text-center" style={{ marginRight: '15px' }}>时间</div>
+                    <div className="grid grid-cols-12 gap-2 py-3 px-4 pr-[22px] border-b border-slate-200 bg-slate-100/50 text-xs font-bold text-slate-500 uppercase flex-shrink-0">
+                        <div className="col-span-1 text-center">#</div>
+                        <div className="col-span-3 text-center">玩家</div>
+                        <div className="col-span-2 text-center">分数</div>
+                        <div className="col-span-1 text-center">评级</div>
+                        <div className="col-span-3 text-center">评价</div>
+                        <div className="col-span-2 text-center">时间</div>
                     </div>
-                    <div className="overflow-y-auto custom-scroll flex-1 p-2" onScroll={handleScroll}>
+                    <div className="overflow-y-auto custom-scroll flex-1 px-4 py-2" onScroll={handleScroll}>
                         {loading ? (
                             <div className="flex items-center justify-center h-40 text-slate-400">
                                 <i className="fas fa-spinner fa-spin text-2xl mr-2"></i> 加载中...
@@ -165,23 +168,23 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose, initialCha
                         ) : (
                             <>
                                 {entries.map((entry, idx) => (
-                                    <div key={entry.id} className="grid grid-cols-12 gap-4 p-3 hover:bg-white rounded-xl transition-colors text-sm border-b border-slate-100 last:border-0 group">
+                                    <div key={entry.id} className="grid grid-cols-12 gap-2 py-3 hover:bg-white rounded-xl transition-colors text-sm border-b border-slate-100 last:border-0 group">
                                         <div className="col-span-1 text-center font-black text-slate-300 group-hover:text-indigo-500">
                                             {idx + 1}
                                         </div>
-                                        <div className="col-span-3 text-center font-bold text-slate-700 truncate">
+                                        <div className="col-span-3 text-center font-bold text-slate-700 truncate min-w-0">
                                             {entry.player_name}
                                         </div>
                                         <div className="col-span-2 text-center font-mono font-bold text-indigo-600">
                                             {Math.floor(entry.score)}
                                         </div>
-                                        <div className="col-span-1 text-center text-xs text-slate-500 truncate">
+                                        <div className="col-span-1 text-center text-xs text-slate-500 truncate min-w-0">
                                             <span className="px-2 py-0.5 bg-slate-200 rounded text-[10px]">{entry.details?.rank || 'B'}</span>
                                         </div>
-                                        <div className="col-span-3 text-center">
+                                        <div className="col-span-3 text-center truncate min-w-0">
                                             {entry.details?.title}
                                         </div>
-                                        <div className="col-start-11 col-span-1 text-center text-xs text-slate-400 font-mono">
+                                        <div className="col-span-2 text-center text-xs text-slate-400 font-mono">
                                             {new Date(entry.created_at).toLocaleDateString()}
                                         </div>
                                     </div>

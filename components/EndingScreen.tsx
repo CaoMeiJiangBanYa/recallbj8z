@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { GameState, Phase } from '../types';
 import { DIFFICULTY_PRESETS } from '../data/constants';
-import { uploadScore } from '../lib/supabase';
+import { uploadScore, getUseNewDb } from '../lib/supabase';
 
 interface EndingScreenProps {
     state: GameState;
@@ -15,16 +15,18 @@ const EndingScreen: React.FC<EndingScreenProps> = ({ state, endingData, onRestar
     const [uploadStatus, setUploadStatus] = useState<'IDLE' | 'UPLOADING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [playerName, setPlayerName] = useState('');
     const [showNameInput, setShowNameInput] = useState(false);
+    const uploadingRef = useRef(false);
 
     const handleUpload = async () => {
-        if (!playerName.trim()) return;
-        
+        if (!playerName.trim() || uploadingRef.current) return;
+
         // Strict check: Only Reality or Challenge Mode
         const isEligible = state.difficulty === 'REALITY' || !!state.activeChallengeId;
         if (!isEligible) {
             return;
         }
 
+        uploadingRef.current = true;
         setUploadStatus('UPLOADING');
         try {
             await uploadScore({
@@ -36,12 +38,14 @@ const EndingScreen: React.FC<EndingScreenProps> = ({ state, endingData, onRestar
                     title: endingData.title,
                     rank: endingData.rank
                 }
-            });
+            }, getUseNewDb());
             setUploadStatus('SUCCESS');
             setShowNameInput(false);
         } catch (e) {
             console.error(e);
             setUploadStatus('ERROR');
+        } finally {
+            uploadingRef.current = false;
         }
     };
 
@@ -94,7 +98,7 @@ const EndingScreen: React.FC<EndingScreenProps> = ({ state, endingData, onRestar
                                  <div className="flex-1">
                                      <div className="text-xs text-slate-500 mb-1">期末考试</div>
                                      <div className="text-xl font-black text-indigo-600">
-                                         {(state.examResult?.title === Phase.FINAL_EXAM || state.examResult?.title === '期末考试') && state.examResult.rank ? `Top ${state.examResult.rank}` : 'N/A'}
+                                         {state.examResult?.title === Phase.FINAL_EXAM && state.examResult.rank ? `Top ${state.examResult.rank}` : 'N/A'}
                                      </div>
                                  </div>
                              </div>
@@ -235,6 +239,10 @@ const EndingScreen: React.FC<EndingScreenProps> = ({ state, endingData, onRestar
                                       <button disabled className="px-6 bg-emerald-100 text-emerald-600 rounded-2xl font-bold flex items-center gap-2 cursor-default">
                                          <i className="fas fa-check"></i> 已上传
                                       </button>
+                                 ) : uploadStatus === 'ERROR' ? (
+                                     <button onClick={() => setShowNameInput(true)} className="px-6 bg-rose-100 text-rose-600 rounded-2xl font-bold hover:bg-rose-200 transition-colors flex items-center gap-2" title="上传失败，点击重试">
+                                         <i className="fas fa-exclamation-triangle"></i> 上传失败，重试
+                                     </button>
                                  ) : (
                                      <button onClick={() => setShowNameInput(true)} className="px-6 bg-indigo-100 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-200 transition-colors flex items-center gap-2">
                                          <i className="fas fa-cloud-upload-alt"></i> 上传成绩
