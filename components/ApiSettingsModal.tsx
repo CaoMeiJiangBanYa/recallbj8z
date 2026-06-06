@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { ApiSettings } from '../types';
 import { getApiSettings, saveApiSettings } from '../lib/gemini';
 
-const DEFAULT_API_URL = "https://api.chatanywhere.tech/v1/chat/completions";
-const DEEPSEEK_OFFICIAL_URL = "https://api.deepseek.com/chat/completions";
 const DEFAULT_MODEL = "DeepSeek-v4-flash";
 
 interface Props {
@@ -53,30 +51,13 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
             <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5">
               <i className="fas fa-link mr-1"></i>API 地址
             </label>
-            <div className="flex gap-2 mb-2">
-              <button
-                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEEPSEEK_OFFICIAL_URL, apiKey: prev.apiKey === 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag' ? '' : prev.apiKey }))}
-                className="text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200"
-              >
-                <i className="fas fa-check-circle mr-1"></i>DeepSeek 官方
-              </button>
-              <button
-                onClick={() => setSettings(prev => ({ ...prev, apiUrl: DEFAULT_API_URL, apiKey: 'sk-8aRKD47anCMcruCDOkbvYEAz6GyjNlqG761QVs0YKkX5OCag', modelName: 'deepseek-chat' }))}
-                className="text-[10px] px-2.5 py-1 rounded-lg border font-bold transition-all bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200"
-              >
-                <i className="fas fa-check-circle mr-1"></i>ChatAnywhere 代理
-              </button>
-            </div>
             <input
               type="text"
               value={settings.apiUrl}
               onChange={e => update('apiUrl', e.target.value)}
-              placeholder={DEEPSEEK_OFFICIAL_URL}
+              placeholder="https://api.deepseek.com/chat/completions"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-mono focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
             />
-            <p className="text-[10px] text-slate-400 mt-1">
-              用自己的 Key → 选 DeepSeek 官方。用默认 Key → 选 ChatAnywhere 代理。
-            </p>
           </div>
 
           {/* API Key */}
@@ -142,7 +123,7 @@ const ApiSettingsModal: React.FC<Props> = ({ onClose }) => {
             <p><i className="fas fa-info-circle mr-1"></i>
             <strong>注意：</strong>自定义提示词功能仅在配置了自己的 API Key 后可用。这是为了防止滥用默认 API。</p>
             <p><i className="fas fa-exclamation-triangle mr-1"></i>
-            <strong>CORS 提醒：</strong>浏览器可能拦截对 API 的直接请求。如果请求失败，可以尝试使用代理地址（如默认的 chatanywhere）或浏览器插件关闭 CORS。</p>
+            <strong>CORS 提醒：</strong>浏览器可能拦截对 API 的直接请求。如果请求失败，可以尝试使用代理地址或浏览器插件关闭 CORS。</p>
           </div>
         </div>
 
